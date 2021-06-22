@@ -1,0 +1,7 @@
+libs/*.o
+*.pdf
+*.zip
+image_convolution_hip
+image_convolution_cuda
+out/
+report/
