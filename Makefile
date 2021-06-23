@@ -4,7 +4,7 @@ CUDA_OUT := image_convolution_cuda
 HIP_SRC  := src/main.hip.cpp
 HIP_OUT  := image_convolution_hip
 
-LIBS := $(wildcard libs/*.c)
+LIBS := libs/bitmap.c libs/shared.c
 OBJ := $(patsubst %.c,%.o,$(LIBS))
 
 CC      := gcc
@@ -22,7 +22,7 @@ endif
 hip: $(HIP_OUT)
 cuda: $(CUDA_OUT)
 
-$(OBJ): $(LIBS)
+%.o: %.c
 	$(CC) -c $(FLAGS) $< -o $@
 
 $(CUDA_OUT): $(OBJ) $(CUDA_SRC)
@@ -32,6 +32,7 @@ $(HIP_OUT): $(OBJ) $(HIP_SRC)
 	$(HIP_CC) $(FLAGS) $^ -o $@
 
 clean:
+	rm -Rf $(OBJ)
 	rm -Rf $(CUDA_OUT)
 	rm -Rf $(HIP_OUT)
 
