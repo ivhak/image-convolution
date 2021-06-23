@@ -1,14 +1,14 @@
 #ifndef SHARED_H
 #define SHARED_H
 #include "bitmap.h"
-extern const float sobelYFilter[];
-extern const float sobelXFilter[];
-extern const float laplacian1Filter[];
-extern const float laplacian2Filter[];
-extern const float laplacian3Filter[];
-extern const float gaussianFilter[];
+extern const int sobelYFilter[];
+extern const int sobelXFilter[];
+extern const int laplacian1Filter[];
+extern const int laplacian2Filter[];
+extern const int laplacian3Filter[];
+extern const int gaussianFilter[];
 extern const char* filterNames[];
-extern const float* filters[];
+extern const int* filters[];
 extern const unsigned int filterDims[] ;
 extern const float filterFactors[];
 extern const int maxFilterIndex;

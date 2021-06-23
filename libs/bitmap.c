@@ -139,13 +139,7 @@ int loadBmpImage(bmpImage *image, char const *filename) {
         if (fread( data, sizeof(unsigned char), paddedLineSize, fImage) < paddedLineSize) {
             goto failed_read;
         }
-        // Load the unsigned chars as floats
-        for (int x = 0, i_x=0; x < lineSize; x+=3, i_x++) {
-            image->data[y][i_x].b = (float) data[x+0];
-            image->data[y][i_x].g = (float) data[x+1];
-            image->data[y][i_x].r = (float) data[x+2];
-        }
-        // memcpy(image->data[y], data, lineSize);
+        memcpy(image->data[y], data, lineSize);
     }
     ret = 0;
 failed_read:
@@ -182,14 +176,7 @@ int saveBmpImage(bmpImage *image, char const *filename) {
         ret = 1;
     } else {
         for (unsigned int i = 0; i < image->height; i++) {
-            // Convert the pixels back to unsigned chars
-            unsigned char data[image->width*3];
-            for (int j = 0, i_j=0; j < image->width*3; j+=3, i_j++) {
-                data[j+0] = (unsigned char) image->data[i][i_j].b;
-                data[j+1] = (unsigned char) image->data[i][i_j].g;
-                data[j+2] = (unsigned char) image->data[i][i_j].r;
-            }
-            if (fwrite(data, sizeof(unsigned char), 3*image->width ,fImage) < 3*image->width)  {
+            if (fwrite(image->data[i], sizeof(pixel), image->width ,fImage) < image->width)  {
                 ret = 1;
                 break;
             }
@@ -226,37 +213,37 @@ int mapImageChannel(bmpImage *to, bmpImageChannel *from, pixel extractMethod(uns
     return 0;
 }
 
-pixel mapRed(float from) {
+pixel mapRed(unsigned char from) {
     pixel res = {};
     res.r = from;
     return res;
 }
-pixel mapGreen(float from) {
+pixel mapGreen(unsigned char from) {
     pixel res = {};
     res.g = from;
     return res;
 }
-pixel mapBlue(float from) {
+pixel mapBlue(unsigned char from) {
     pixel res = {};
     res.b = from;
     return res;
 }
 
-float extractRed(pixel from) {
+unsigned char extractRed(pixel from) {
     return from.r;
 }
-float extractGreen(pixel from) {
+unsigned char extractGreen(pixel from) {
     return from.g;
 }
-float extractBlue(pixel from) {
+unsigned char extractBlue(pixel from) {
     return from.b;
 }
 
-float extractAverage(pixel from) {
+unsigned char extractAverage(pixel from) {
     return ((from.r + from.g + from.b) / 3);
 }
 
-pixel mapEqual(float from) {
+pixel mapEqual(unsigned char from) {
     pixel res = {from, from, from};
     return res;
 }

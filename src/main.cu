@@ -25,7 +25,7 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 #define BLOCK_Y 32
 
 
-__constant__ __device__ float d_filter[25];
+__constant__ __device__ int d_filter[25];
 // Apply convolutional filter on image data
 __global__
 void applyFilter(pixel *out, pixel *in, unsigned int width, unsigned int height, unsigned int filterDim, float filterFactor) {
