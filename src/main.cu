@@ -225,6 +225,7 @@ int main(int argc, char **argv) {
                                                   block_size_1d,
                                                   0);
 
+#if 0
     int device;
     cudaDeviceProp props;
     cudaGetDevice(&device);
@@ -233,6 +234,7 @@ int main(int argc, char **argv) {
                       (float)(props.maxThreadsPerMultiProcessor / props.warpSize);
 
     printf("Launched blocks of size %d. Theoretical occupancy: %f\n", block_size.x*block_size.y, occupancy);
+#endif
 
     cudaFree(d_image_rawdata);
     cudaFree(d_process_image_rawdata);

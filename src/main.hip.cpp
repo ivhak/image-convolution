@@ -15,6 +15,14 @@ extern "C" {
 #define BLOCK_X 32
 #define BLOCK_Y 32
 
+#define HIP_CHECK(command) {     \
+    hipError_t status = command; \
+    if (status!=hipSuccess) {     \
+        printf("(%s:%s) Error: Hip reports %s\n", __FILE__, __LINE__, hipGetErrorString(status)); \
+        exit(1); \
+    } \
+}
+
 
 __constant__ __device__ int d_filter[25];
 // Apply convolutional filter on image data
@@ -164,13 +172,13 @@ int main(int argc, char **argv) {
     pixel *d_process_image_rawdata;
 
     // Allocate space for both device copies of the image, as well as for the filter.
-    hipMalloc((void **)&d_process_image_rawdata, size_of_all_pixels);
-    hipMalloc((void **)&d_image_rawdata,         size_of_all_pixels);
+    HIP_CHECK(hipMalloc((void **)&d_process_image_rawdata, size_of_all_pixels));
+    HIP_CHECK(hipMalloc((void **)&d_image_rawdata,         size_of_all_pixels));
 
     // Set the device side arrays.
-    hipMemset(d_process_image_rawdata, 0, size_of_all_pixels);
-    hipMemcpy(d_image_rawdata, image->rawdata, size_of_all_pixels, hipMemcpyHostToDevice);
-    hipMemcpyToSymbol(HIP_SYMBOL(d_filter), filters[filterIndex], size_of_filter);
+    HIP_CHECK(hipMemset(d_process_image_rawdata, 0, size_of_all_pixels));
+    HIP_CHECK(hipMemcpy(d_image_rawdata, image->rawdata, size_of_all_pixels, hipMemcpyHostToDevice));
+    HIP_CHECK(hipMemcpyToSymbol(HIP_SYMBOL(d_filter), filters[filterIndex], size_of_filter));
 
     // We want one thread per pixel. Set the block size, and based on that set
     // the grid size to the smallest multiple of block size such that
@@ -196,11 +204,12 @@ int main(int argc, char **argv) {
                                                image->width, image->height,
                                                filterDims[filterIndex],
                                                filterFactors[filterIndex]);
+        HIP_CHECK(hipGetLastError());
         // Swap the image and process_image
         swapImageRawdata(&d_image_rawdata, &d_process_image_rawdata);
     }
     // Copy back from the device-side array
-    hipMemcpy(image->rawdata, d_image_rawdata, size_of_all_pixels, hipMemcpyDeviceToHost);
+    HIP_CHECK(hipMemcpy(image->rawdata, d_image_rawdata, size_of_all_pixels, hipMemcpyDeviceToHost));
 
     // Stop the timer; calculate and print the elapsed time
     clock_gettime(CLOCK_MONOTONIC, &end_time);
@@ -214,6 +223,7 @@ int main(int argc, char **argv) {
                                                   block_size_1d,
                                                   0);
 
+#if 0
     int device;
     hipDeviceProp_t props;
     hipGetDevice(&device);
@@ -222,6 +232,7 @@ int main(int argc, char **argv) {
                       (float)(props.maxThreadsPerMultiProcessor / props.warpSize);
 
     printf("Launched blocks of size %d. Theoretical occupancy: %f\n", block_size.x*block_size.y, occupancy);
+#endif
 
     hipFree(d_image_rawdata);
     hipFree(d_process_image_rawdata);
