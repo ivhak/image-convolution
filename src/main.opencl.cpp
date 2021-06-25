@@ -53,49 +53,55 @@ int main(int argc, char **argv) {
     const size_t size_of_all_pixels = (image->width)*(image->height)*sizeof(pixel);
     const size_t size_of_filter = filterDims[filterIndex]*filterDims[filterIndex]*sizeof(int);
 
-    //OpenCL source can be placed in the source code as text strings or read from another file.
+    // OpenCL source can be placed in the source code as text strings or read from another file.
     FILE *fp;
     const char fileName[] = "src/kernel.simple.cl";
     size_t source_size;
     char *source_str;
 
-    //
     // read the kernel file into ram
     fp = fopen(fileName, "r");
     DIE_IF(!fp, "Failed to load kernel.");
 
     source_str = (char *)malloc(MAX_SOURCE_SIZE);
     source_size = fread( source_str, 1, MAX_SOURCE_SIZE, fp );
-    fclose( fp );
+    fclose(fp);
+
+    // Timing
+    struct timespec start_time, end_time;
+
+    // Setup OpenCL
+    cl_platform_id    platform_id;
+    cl_device_id      device_id;
+    cl_context        context;
+    cl_command_queue  queue;
+    cl_program        program;
+    cl_kernel         kernel;
+
+    cl_mem  d_image_data_in;
+    cl_mem  d_image_data_out;
+    cl_mem  d_kernel_buf;
 
     cl_int err;
 
-    cl_uint platform_count;
-    err = clGetPlatformIDs(0, NULL, &platform_count);
-    DIE_IF_CL(err, "Could not get number of platforms.");
 
-    cl_platform_id platforms[platform_count];
-    err = clGetPlatformIDs(platform_count, platforms, NULL);
+    err = clGetPlatformIDs(1, &platform_id, NULL);
     DIE_IF_CL(err, "Could not get platforms.");
 
-    cl_uint device_count;
-    err = clGetDeviceIDs(platforms[0], CL_DEVICE_TYPE_GPU, 0, NULL, &device_count);
-    DIE_IF_CL(err, "Could not get device ids.");
-
-    cl_device_id devices[device_count];
-    err = clGetDeviceIDs(platforms[0], CL_DEVICE_TYPE_GPU, 1, devices, NULL);
+    err = clGetDeviceIDs(platform_id, CL_DEVICE_TYPE_GPU, 1, &device_id, NULL);
     DIE_IF_CL(err, "Could not get device.");
 
     // Create a compute context with the GPU
-    cl_context context = clCreateContextFromType(NULL, CL_DEVICE_TYPE_GPU, NULL, NULL, NULL);
+    context = clCreateContextFromType(NULL, CL_DEVICE_TYPE_GPU, NULL, NULL, &err);
+    DIE_IF_CL(err, "Could not create compute context.");
 
     // Create a command queue
-    clGetDeviceIDs(NULL, CL_DEVICE_TYPE_DEFAULT, 1, devices, NULL);
-    cl_command_queue queue = clCreateCommandQueueWithProperties(context, devices[0], NULL, &err);
+    queue = clCreateCommandQueueWithProperties(context, device_id, NULL, &err);
+    DIE_IF_CL(err, "Could not create command queue.");
 
 
     // Create the compute program
-    cl_program program = clCreateProgramWithSource(context, 1, (const char **)& source_str, NULL, &err);
+    program = clCreateProgramWithSource(context, 1, (const char **)& source_str, NULL, &err);
     DIE_IF_CL(err, "Could not create kernel program.");
 
     // Build the compute program executable
@@ -103,13 +109,13 @@ int main(int argc, char **argv) {
     if (err == CL_BUILD_PROGRAM_FAILURE) {
         // Determine the size of the log
         size_t log_size;
-        clGetProgramBuildInfo(program, devices[0], CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
+        clGetProgramBuildInfo(program, device_id, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
 
         // Allocate memory for the log
         char *log = (char *) malloc(log_size);
 
         // Get the log
-        clGetProgramBuildInfo(program, devices[0], CL_PROGRAM_BUILD_LOG, log_size, log, NULL);
+        clGetProgramBuildInfo(program, device_id, CL_PROGRAM_BUILD_LOG, log_size, log, NULL);
 
         // Print the log
         printf("%s\n", log);
@@ -117,34 +123,41 @@ int main(int argc, char **argv) {
     DIE_IF_CL(err, "Could not build kernel program.");
 
     // Create the compute kernel
-    cl_kernel kernel = clCreateKernel(program, "applyFilter", &err);
+    kernel = clCreateKernel(program, "applyFilter", &err);
     DIE_IF_CL(err, "Could not create kernel");
 
+#ifdef DEBUG
+    printf("image_rawdata[0].r = %d\n", image->rawdata[0].r);
+    printf("image_rawdata[0].g = %d\n", image->rawdata[0].g);
+    printf("image_rawdata[0].b = %d\n", image->rawdata[0].b);
+    printf("image_rawdata[1].r = %d\n", image->rawdata[1].r);
+    printf("image_rawdata[1].g = %d\n", image->rawdata[1].g);
+    printf("image_rawdata[1].b = %d\n", image->rawdata[1].b);
+#endif
+
     // Allocate the buffer memory objects aka device side buffers
-    cl_mem d_image_data_in  = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                             size_of_all_pixels, image->rawdata, &err);
+    // TODO: The data is not actually being copied over, only garbage data.
+    d_image_data_in  = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, size_of_all_pixels, (void*)image->rawdata, &err);
     DIE_IF_CL(err, "Could not create in buffer.");
 
-    cl_mem d_image_data_out = clCreateBuffer(context, CL_MEM_WRITE_ONLY,
-                                             size_of_all_pixels, NULL, &err);
+    d_image_data_out = clCreateBuffer(context, CL_MEM_WRITE_ONLY, size_of_all_pixels, NULL, &err);
     DIE_IF_CL(err, "Could not create out buffer.");
 
-    cl_mem kernel_buf= clCreateBuffer(context, CL_MEM_READ_ONLY, size_of_filter, NULL, &err);
+    d_kernel_buf = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, size_of_filter, (void*)filters[filterIndex], &err);
     DIE_IF_CL(err, "Could not create kernel buffer.");
 
     // Set the args
     err =  clSetKernelArg(kernel, 0, sizeof(cl_mem),       &d_image_data_in);
     err |= clSetKernelArg(kernel, 1, sizeof(cl_mem),       &d_image_data_out);
-    err |= clSetKernelArg(kernel, 2, sizeof(unsigned int), &image->width);
-    err |= clSetKernelArg(kernel, 3, sizeof(unsigned int), &image->height);
-    err |= clSetKernelArg(kernel, 4, sizeof(cl_mem),       &kernel_buf);
+    err |= clSetKernelArg(kernel, 2, sizeof(cl_mem),       &d_kernel_buf);
+    err |= clSetKernelArg(kernel, 3, sizeof(unsigned int), &image->width);
+    err |= clSetKernelArg(kernel, 4, sizeof(unsigned int), &image->height);
     err |= clSetKernelArg(kernel, 5, sizeof(unsigned int), &filterDims[filterIndex]);
     err |= clSetKernelArg(kernel, 6, sizeof(float),        &filterFactors[filterIndex]);
     DIE_IF_CL(err, "Failed to set kernel argument.");
 
 
-    // create N-D range object with work-item dimensions and execute kernel
-
+    // Create N-D range object with work-item dimensions and execute kernel
     size_t global_work_size[2];
     global_work_size[0] = BLOCK_X*((image->width  + BLOCK_X - 1)/BLOCK_X);
     global_work_size[1] = BLOCK_Y*((image->height + BLOCK_Y - 1)/BLOCK_Y);
@@ -153,23 +166,31 @@ int main(int argc, char **argv) {
 
 
     // Start time measurement
-    struct timespec start_time, end_time;
     clock_gettime(CLOCK_MONOTONIC, &start_time);
-    // for (unsigned int i = 0; i < iterations; i++) {
-    //     err = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global_work_size, local_work_size, 0, NULL, NULL);
-    //     DIE_IF_CL(err, "Failed to run kernel.");
-    //     clFinish(queue);
-    //     if (i < iterations-1) {
-    //         err = clEnqueueCopyBuffer(queue, d_image_data_out, d_image_data_in, 0, 0, size_of_all_pixels, 0, NULL, NULL);
-    //         DIE_IF_CL(err, "Failed to copy device to device.");
-    //     }
-    // }
-    // TODO: Copy back from the device-side array
+#if 0
+    for (unsigned int i = 0; i < iterations; i++) {
+        err = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global_work_size, local_work_size, 0, NULL, NULL);
+        DIE_IF_CL(err, "Failed to run kernel.");
+        clFinish(queue);
+        if (i < iterations-1) {
+            err = clEnqueueCopyBuffer(queue, d_image_data_out, d_image_data_in, 0, 0, size_of_all_pixels, 0, NULL, NULL);
+            DIE_IF_CL(err, "Failed to copy device to device.");
+        }
+    }
+#else
+    // Launch the kernel
     err = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global_work_size, local_work_size, 0, NULL, NULL);
     DIE_IF_CL(err, "Failed to run kernel.");
+#endif
+
     clFinish(queue);
+
+    // Copy back from the device-side array
     err = clEnqueueReadBuffer(queue, d_image_data_out, CL_TRUE, 0, size_of_all_pixels, image->rawdata, 0, NULL, NULL);
     DIE_IF_CL(err, "Failed to copy back to device.");
+
+    clFinish(queue);
+
 
     // Stop the timer; calculate and print the elapsed time
     clock_gettime(CLOCK_MONOTONIC, &end_time);
@@ -186,7 +207,7 @@ int main(int argc, char **argv) {
     clReleaseKernel(kernel);
     clReleaseMemObject(d_image_data_in);
     clReleaseMemObject(d_image_data_out);
-    clReleaseMemObject(kernel_buf);
+    clReleaseMemObject(d_kernel_buf);
     clReleaseCommandQueue(queue);
     clReleaseProgram(program);
     clReleaseContext(context);

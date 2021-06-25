@@ -4,16 +4,32 @@ typedef struct pi {
     uchar r;
 } pixel;
 
-__kernel void applyFilter(__global pixel *out, __global pixel *in,
-                          uint width, uint height, __global int *filter, uint filterDim, float filterFactor)
+__kernel void applyFilter(__global pixel *out, __global pixel *in, __global int *filter,
+                          uint width, uint height, uint filterDim, float filterFactor)
 {
     size_t x = get_global_id(0);
     size_t y = get_global_id(1);
+#ifdef DEBUG
+    if (x == 0 && y == 0) {
+
+        printf("pixel[0].r: %d", in[0].r);
+        printf("pixel[0].g: %d", in[0].g);
+        printf("pixel[0].b: %d", in[0].b);
+        printf("pixel[0].r: %d", in[1].r);
+        printf("pixel[0].g: %d", in[1].g);
+        printf("pixel[0].b: %d", in[1].b);
+        printf("kernel: %d %d %d", filter[0], filter[1], filter[2]);
+        printf("        %d %d %d", filter[3], filter[4], filter[5]);
+        printf("        %d %d %d", filter[6], filter[7], filter[8]);
+    }
+#endif
     if (x >= width || y >= height) return;
+
 
     out[y*width + x].r = !in[y*width + x].r;
     out[y*width + x].g = !in[y*width + x].g;
     out[y*width + x].b = !in[y*width + x].b;
+    return;
 
 
     uint filterCenter = (filterDim / 2);
