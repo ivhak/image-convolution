@@ -22,7 +22,7 @@ CUDA_CC := nvcc
 HIP_CC  := hipcc
 
 ifdef DEBUG
-CFLAGS := -g -O0
+CFLAGS := -g -O0 -DDEBUG
 else
 CFLAGS := -O2
 endif
