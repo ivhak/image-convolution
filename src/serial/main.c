@@ -46,9 +46,6 @@ void applyKernel(pixel **out, pixel **in, unsigned int width, unsigned int heigh
 }
 
 int main(int argc, char **argv) {
-    /*
-       Parameter parsing, don't change this!
-       */
     unsigned int iterations = 1;
     char *output = NULL;
     char *input = NULL;
@@ -56,14 +53,8 @@ int main(int argc, char **argv) {
     int ret = 0;
 
     parse_args(argc, argv, &iterations, &filterIndex, &output, &input);
-    /*
-       End of Parameter parsing!
-       */
 
-
-    /*
-       Create the BMP image and load it from disk.
-       */
+    // Create the BMP image and load it from disk.
     bmpImage *image = newBmpImage(0,0);
     if (image == NULL) {
         fprintf(stderr, "Could not allocate new image!\n");
@@ -79,7 +70,6 @@ int main(int argc, char **argv) {
     printf("Apply kernel '%s' on image with %u x %u pixels for %u iterations\n", filterNames[filterIndex], image->width, image->height, iterations);
 
 
-    // TODO: implement time measurement from here
     struct timespec start_time, end_time;
     clock_gettime(CLOCK_MONOTONIC, &start_time);
 
