@@ -18,7 +18,7 @@ extern "C" {
 #define HIP_CHECK(command) {     \
     hipError_t status = command; \
     if (status!=hipSuccess) {     \
-        printf("(%s:%s) Error: Hip reports %s\n", __FILE__, __LINE__, hipGetErrorString(status)); \
+        printf("(%s:%d) Error: Hip reports %s\n", __FILE__, __LINE__, hipGetErrorString(status)); \
         exit(1); \
     } \
 }
@@ -47,7 +47,7 @@ void applyFilter(pixel *out, pixel *in, unsigned int width, unsigned int height,
     unsigned int x = threadIdx.x + padding;
     unsigned int y = threadIdx.y + padding;
 
-    // Fill in the halo. Each thread fill in the pixel it's index points to. If
+    // Fill in the halo. Each thread fills in the pixel its index points to. If
     // it is a border thread, it also has to load the `padding` amount of
     // pixels in its border direction. Corner threads have to fill in pixels
     // in both border directions, as well as the diagonal.
