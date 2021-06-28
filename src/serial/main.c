@@ -5,8 +5,8 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include "../libs/bitmap.h"
-#include "../libs/shared.h"
+#include "../../lib/bitmap.h"
+#include "../../lib/shared.h"
 
 
 // Apply convolutional kernel on image data

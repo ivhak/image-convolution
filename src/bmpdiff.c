@@ -1,7 +1,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "../libs/bitmap.h"
+#include "../lib/bitmap.h"
+
 bmpImage *load_image(const char *filename)
 {
     bmpImage *image = newBmpImage(0,0);

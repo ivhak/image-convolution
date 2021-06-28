@@ -7,8 +7,8 @@
 #include "CL/cl.h"
 
 extern "C" {
-#include "../libs/bitmap.h"
-#include "../libs/shared.h"
+#include "../../lib/bitmap.h"
+#include "../../lib/shared.h"
 }
 
 #define BLOCK_X 16
@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
     const size_t size_of_filter = filterDims[filterIndex]*filterDims[filterIndex]*sizeof(int);
 
     // OpenCL source can be placed in the source code as text strings or read from another file.
-    char *source_str = load_kernel_source("src/kernel.cl");
+    char *source_str = load_kernel_source("src/opencl/kernel.cl");
 
     // Timing
     struct timespec start_time, end_time;

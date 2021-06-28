@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -6,23 +7,21 @@
 #include <time.h>
 
 extern "C" {
-#include "../libs/bitmap.h"
-#include "../libs/shared.h"
+#include "../../lib/bitmap.h"
+#include "../../lib/shared.h"
 }
 
-#define cudaErrorCheck(ans) { gpuAssert((ans), __FILE__, __LINE__);  }
-inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
-{
-    if (code != cudaSuccess)
-    {
-        fprintf(stderr,"GPUassert: %s %s %s %d\n", cudaGetErrorName(code), cudaGetErrorString(code), file, line);
-        if (abort) exit(code);
-
-    }
-}
 
 #define BLOCK_X 32
 #define BLOCK_Y 32
+
+#define HIP_CHECK(command) {     \
+    hipError_t status = command; \
+    if (status!=hipSuccess) {     \
+        printf("(%s:%d) Error: Hip reports %s\n", __FILE__, __LINE__, hipGetErrorString(status)); \
+        exit(1); \
+    } \
+}
 
 
 __constant__ __device__ int d_filter[25];
@@ -48,7 +47,7 @@ void applyFilter(pixel *out, pixel *in, unsigned int width, unsigned int height,
     unsigned int x = threadIdx.x + padding;
     unsigned int y = threadIdx.y + padding;
 
-    // Fill in the halo. Each thread fill in the pixel it's index points to. If
+    // Fill in the halo. Each thread fills in the pixel its index points to. If
     // it is a border thread, it also has to load the `padding` amount of
     // pixels in its border direction. Corner threads have to fill in pixels
     // in both border directions, as well as the diagonal.
@@ -130,6 +129,8 @@ void applyFilter(pixel *out, pixel *in, unsigned int width, unsigned int height,
     out[global_y*width + global_x].g = (ag > 255) ? 255 : ag;
     out[global_y*width + global_x].b = (ab > 255) ? 255 : ab;
 }
+
+
 int main(int argc, char **argv) {
     /*
        Parameter parsing, don't change this!
@@ -171,13 +172,13 @@ int main(int argc, char **argv) {
     pixel *d_process_image_rawdata;
 
     // Allocate space for both device copies of the image, as well as for the filter.
-    cudaMalloc((void **)&d_process_image_rawdata, size_of_all_pixels);
-    cudaMalloc((void **)&d_image_rawdata,         size_of_all_pixels);
+    HIP_CHECK(hipMalloc((void **)&d_process_image_rawdata, size_of_all_pixels));
+    HIP_CHECK(hipMalloc((void **)&d_image_rawdata,         size_of_all_pixels));
 
     // Set the device side arrays.
-    cudaMemset(d_process_image_rawdata, 0, size_of_all_pixels);
-    cudaMemcpy(d_image_rawdata, image->rawdata, size_of_all_pixels, cudaMemcpyHostToDevice);
-    cudaMemcpyToSymbol(d_filter, filters[filterIndex], size_of_filter);
+    HIP_CHECK(hipMemset(d_process_image_rawdata, 0, size_of_all_pixels));
+    HIP_CHECK(hipMemcpy(d_image_rawdata, image->rawdata, size_of_all_pixels, hipMemcpyHostToDevice));
+    HIP_CHECK(hipMemcpyToSymbol(HIP_SYMBOL(d_filter), filters[filterIndex], size_of_filter));
 
     // We want one thread per pixel. Set the block size, and based on that set
     // the grid size to the smallest multiple of block size such that
@@ -198,20 +199,17 @@ int main(int argc, char **argv) {
     clock_gettime(CLOCK_MONOTONIC, &start_time);
 
     for (unsigned int i = 0; i < iterations; i++) {
-        applyFilter<<<grid_size, block_size>>>(d_process_image_rawdata,
+        hipLaunchKernelGGL(applyFilter, dim3(grid_size), dim3(block_size), 0, 0, d_process_image_rawdata,
                                                d_image_rawdata,
                                                image->width, image->height,
                                                filterDims[filterIndex],
                                                filterFactors[filterIndex]);
+        HIP_CHECK(hipGetLastError());
         // Swap the image and process_image
         swapImageRawdata(&d_image_rawdata, &d_process_image_rawdata);
     }
     // Copy back from the device-side array
-    cudaMemcpy(image->rawdata, d_image_rawdata, size_of_all_pixels, cudaMemcpyDeviceToHost);
-
-    // Check for error
-    cudaError_t error = cudaGetLastError();
-    cudaErrorCheck(error);
+    HIP_CHECK(hipMemcpy(image->rawdata, d_image_rawdata, size_of_all_pixels, hipMemcpyDeviceToHost));
 
     // Stop the timer; calculate and print the elapsed time
     clock_gettime(CLOCK_MONOTONIC, &end_time);
@@ -220,24 +218,24 @@ int main(int argc, char **argv) {
     // calculate theoretical occupancy
     int max_active_blocks;
     int block_size_1d = block_size.x*block_size.y;
-    cudaOccupancyMaxActiveBlocksPerMultiprocessor(&max_active_blocks,
+    hipOccupancyMaxActiveBlocksPerMultiprocessor(&max_active_blocks,
                                                   applyFilter,
                                                   block_size_1d,
                                                   0);
 
 #if 0
     int device;
-    cudaDeviceProp props;
-    cudaGetDevice(&device);
-    cudaGetDeviceProperties(&props, device);
+    hipDeviceProp_t props;
+    hipGetDevice(&device);
+    hipGetDeviceProperties(&props, device);
     float occupancy = (max_active_blocks * block_size_1d / props.warpSize) /
                       (float)(props.maxThreadsPerMultiProcessor / props.warpSize);
 
     printf("Launched blocks of size %d. Theoretical occupancy: %f\n", block_size.x*block_size.y, occupancy);
 #endif
 
-    cudaFree(d_image_rawdata);
-    cudaFree(d_process_image_rawdata);
+    hipFree(d_image_rawdata);
+    hipFree(d_process_image_rawdata);
     freeBmpImage(processImage);
     //Write the image back to disk
     if (saveBmpImage(image, output) != 0) {

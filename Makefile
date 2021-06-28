@@ -1,20 +1,20 @@
-CUDA_SRC := src/main.cu
+CUDA_SRC := src/hip/main.cu
 CUDA_OUT := image_convolution_cuda
 
-HIP_SRC  := src/main.hip.cpp
+HIP_SRC  := src/hip/main.hip.cpp
 HIP_OUT  := image_convolution_hip
 
-OPENCL_SRC := src/main.opencl.cpp
-OPENCL_OBJ := src/main.opencl.o
+OPENCL_SRC := src/opencl/main.cpp
+OPENCL_OBJ := src/opencl/main.l.o
 OPENCL_OUT := image_convolution_opencl
 OPENCL_DFLAGS := -DCL_TARGET_OPENCL_VERSION=220
 OPENCL_IFLAGS := -I/opt/rocm-4.2.0/opencl/include
 OPENCL_LFLAGS := -lOpenCL -L/opt/rocm-4.2.0/lib
 
-SERIAL_SRC  := src/main.serial.c
+SERIAL_SRC  := src/serial/main.c
 SERIAL_OUT  := image_convolution_serial
 
-LIBS := libs/bitmap.c libs/shared.c
+LIBS := lib/bitmap.c lib/shared.c
 LIB_OBJ := $(patsubst %.c,%.o,$(LIBS))
 
 CC      := gcc
@@ -38,10 +38,10 @@ bmpdiff: $(LIB_OBJ) src/bmpdiff.c
 	$(CC) $(CFLAGS) $^ -o $@
 
 
-$(CUDA_OUT): $(LIB_OBJ) $(CUDA_SRC) 
+$(CUDA_OUT): $(LIB_OBJ) $(CUDA_SRC)
 	$(CUDA_CC) $(CFLAGS) $^ -o $@
 
-$(HIP_OUT): $(LIB_OBJ) $(HIP_SRC) 
+$(HIP_OUT): $(LIB_OBJ) $(HIP_SRC)
 	$(HIP_CC) $(CFLAGS) $^ -o $@
 
 $(OPENCL_OBJ): $(OPENCL_SRC)
