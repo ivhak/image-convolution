@@ -45,7 +45,7 @@ int main(int argc, char **argv) {
         error_exit(&input,&output);
     }
 
-    printf("Apply filter '%s' on image with %u x %u pixels for %u iterations\n", filterNames[filterIndex], image->width, image->height, iterations);
+    printf("'%s', %u x %u pixels, %u iterations:", filterNames[filterIndex], image->width, image->height, iterations);
 
     // Here we do the actual computation!
     // image->data is a 2-dimensional array of pixel which is accessed row first ([y][x])
@@ -69,8 +69,8 @@ int main(int argc, char **argv) {
     cl_kernel         kernel1;
     cl_kernel         kernel2;
 
-    cl_mem  d_image_data_in;
-    cl_mem  d_image_data_out;
+    cl_mem  d_image_data1;
+    cl_mem  d_image_data2;
     cl_mem  d_filter_buf;
 
     cl_int err;
@@ -92,8 +92,9 @@ int main(int argc, char **argv) {
 
 
     // Create the compute program
-    program = clCreateProgramWithSource(context, 1, (const char **)& source_str, NULL, &err);
+    program = clCreateProgramWithSource(context, 1, (const char **)&source_str, NULL, &err);
     DIE_IF_CL(err, "Could not create kernel program.");
+    free(source_str);
 
     // Build the compute program executable
     err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
@@ -110,11 +111,10 @@ int main(int argc, char **argv) {
 
 
     // Allocate the buffer memory objects aka device side buffers
-    // TODO: The data is not actually being copied over, only garbage data.
-    d_image_data_in  = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, size_of_all_pixels, (void*)image->rawdata, &err);
+    d_image_data1  = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, size_of_all_pixels, (void*)image->rawdata, &err);
     DIE_IF_CL(err, "Could not create in buffer.");
 
-    d_image_data_out = clCreateBuffer(context, CL_MEM_READ_WRITE, size_of_all_pixels, NULL, &err);
+    d_image_data2 = clCreateBuffer(context, CL_MEM_READ_WRITE, size_of_all_pixels, NULL, &err);
     DIE_IF_CL(err, "Could not create out buffer.");
 
     d_filter_buf = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, size_of_filter, (void*)filters[filterIndex], &err);
@@ -132,8 +132,8 @@ int main(int argc, char **argv) {
 
 
     // Set the args
-    err =  clSetKernelArg(kernel1, 0, sizeof(cl_mem),       &d_image_data_out); // output of kernel1
-    err |= clSetKernelArg(kernel1, 1, sizeof(cl_mem),       &d_image_data_in);  // input  of kernel1
+    err =  clSetKernelArg(kernel1, 0, sizeof(cl_mem),       &d_image_data2); // output of kernel1
+    err |= clSetKernelArg(kernel1, 1, sizeof(cl_mem),       &d_image_data1); // input  of kernel1
     err |= clSetKernelArg(kernel1, 2, sizeof(cl_mem),       &d_filter_buf);
     err |= clSetKernelArg(kernel1, 3, sizeof(unsigned int), &image->width);
     err |= clSetKernelArg(kernel1, 4, sizeof(unsigned int), &image->height);
@@ -141,8 +141,8 @@ int main(int argc, char **argv) {
     err |= clSetKernelArg(kernel1, 6, sizeof(float),        &filterFactors[filterIndex]);
     DIE_IF_CL(err, "Failed to set kernel argument.");
 
-    err =  clSetKernelArg(kernel2, 0, sizeof(cl_mem),       &d_image_data_in);  // output of kernel2
-    err |= clSetKernelArg(kernel2, 1, sizeof(cl_mem),       &d_image_data_out); // input  of kernel2
+    err =  clSetKernelArg(kernel2, 0, sizeof(cl_mem),       &d_image_data1); // output of kernel2
+    err |= clSetKernelArg(kernel2, 1, sizeof(cl_mem),       &d_image_data2); // input  of kernel2
     err |= clSetKernelArg(kernel2, 2, sizeof(cl_mem),       &d_filter_buf);
     err |= clSetKernelArg(kernel2, 3, sizeof(unsigned int), &image->width);
     err |= clSetKernelArg(kernel2, 4, sizeof(unsigned int), &image->height);
@@ -165,14 +165,13 @@ int main(int argc, char **argv) {
     for (unsigned int i = 0; i < iterations; i++) {
         err = clEnqueueNDRangeKernel(queue, i % 2 == 0 ? kernel1 : kernel2, 2, NULL, global_work_size, local_work_size, 0, NULL, NULL);
         DIE_IF_CL(err, "Failed to run kernel.");
-        clFinish(queue);
     }
 
     clFinish(queue);
 
     // Copy back from the device-side array
-    cl_mem d_actual_image_data_out = iterations % 2 == 0 ? d_image_data_in : d_image_data_out;
-    err = clEnqueueReadBuffer(queue, d_actual_image_data_out, CL_TRUE, 0, size_of_all_pixels, image->rawdata, 0, NULL, NULL);
+    cl_mem d_image_data_out = iterations % 2 == 0 ? d_image_data1 : d_image_data2;
+    err = clEnqueueReadBuffer(queue, d_image_data_out, CL_TRUE, 0, size_of_all_pixels, image->rawdata, 0, NULL, NULL);
     DIE_IF_CL(err, "Failed to copy back to device.");
 
     clFinish(queue);
@@ -181,7 +180,7 @@ int main(int argc, char **argv) {
     // Stop the timer; calculate and print the elapsed time
     clock_gettime(CLOCK_MONOTONIC, &end_time);
     float spentTime = ((end_time.tv_sec - start_time.tv_sec)) + ((end_time.tv_nsec - start_time.tv_nsec)) * 1e-9;
-    printf("Time spent: %.3f seconds\n", spentTime);
+    printf("'%s', %u x %u pixels, %u iterations: %.4f seconds", filterNames[filterIndex], image->width, image->height, iterations, spentTime);
 
     //Write the image back to disk
     if (saveBmpImage(image, output) != 0) {
@@ -192,8 +191,8 @@ int main(int argc, char **argv) {
 
     clReleaseKernel(kernel1);
     clReleaseKernel(kernel2);
-    clReleaseMemObject(d_image_data_in);
-    clReleaseMemObject(d_image_data_out);
+    clReleaseMemObject(d_image_data1);
+    clReleaseMemObject(d_image_data2);
     clReleaseMemObject(d_filter_buf);
     clReleaseCommandQueue(queue);
     clReleaseProgram(program);

@@ -67,7 +67,6 @@ int main(int argc, char **argv) {
         goto error_exit;
     }
 
-    printf("Apply kernel '%s' on image with %u x %u pixels for %u iterations\n", filterNames[filterIndex], image->width, image->height, iterations);
 
 
     struct timespec start_time, end_time;
@@ -92,7 +91,7 @@ int main(int argc, char **argv) {
 
     clock_gettime(CLOCK_MONOTONIC, &end_time);
     float spentTime = ((end_time.tv_sec - start_time.tv_sec)) + ((end_time.tv_nsec - start_time.tv_nsec)) * 1e-9;
-    printf("Time spent: %.3f seconds\n", spentTime);
+    printf("'%s', %u x %u pixels, %u iterations: %.3f seconds", filterNames[filterIndex], image->width, image->height, iterations, spentTime);
 
 
     //Write the image back to disk

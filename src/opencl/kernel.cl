@@ -1,7 +1,7 @@
 #define BLOCK_X 16
 #define BLOCK_Y 16
 
-typedef struct pi {
+typedef struct {
     uchar b;
     uchar g;
     uchar r;
@@ -22,15 +22,15 @@ __kernel void applyFilter(__global pixel *out, __global pixel *in, __global int 
     // All pixels needed for this block, including the halo.
     __local pixel shared_in[BLOCK_X+4][BLOCK_Y+4];
 
-    const int local_id_x   = get_local_id(0);
-    const int local_id_y   = get_local_id(1);
-    const int local_size_x = get_local_size(0);
-    const int local_size_y = get_local_size(1);
+    const size_t local_id_x   = get_local_id(0);
+    const size_t local_id_y   = get_local_id(1);
+    const size_t local_size_x = get_local_size(0);
+    const size_t local_size_y = get_local_size(1);
 
-    const int group_id_x   = get_group_id(0);
-    const int group_id_y   = get_group_id(1);
-    const int num_groups_x = get_num_groups(0);
-    const int num_groups_y = get_num_groups(1);
+    const size_t group_id_x   = get_group_id(0);
+    const size_t group_id_y   = get_group_id(1);
+    const size_t num_groups_x = get_num_groups(0);
+    const size_t num_groups_y = get_num_groups(1);
 
     const bool P_W = local_id_x == 0              && group_id_x > 0;
     const bool P_N = local_id_y == 0              && group_id_y > 0;
@@ -90,7 +90,7 @@ __kernel void applyFilter(__global pixel *out, __global pixel *in, __global int 
             }
         }
     }
-    barrier(CLK_GLOBAL_MEM_FENCE);
+    barrier(CLK_LOCAL_MEM_FENCE);
 
     const uint filterCenter = (filterDim / 2);
     int ar = 0, ag = 0, ab = 0;

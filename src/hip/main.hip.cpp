@@ -157,7 +157,6 @@ int main(int argc, char **argv) {
         error_exit(&input,&output);
     }
 
-    printf("Apply filter '%s' on image with %u x %u pixels for %u iterations\n", filterNames[filterIndex], image->width, image->height, iterations);
 
     // Here we do the actual computation!
     // image->data is a 2-dimensional array of pixel which is accessed row first ([y][x])
@@ -214,7 +213,8 @@ int main(int argc, char **argv) {
     // Stop the timer; calculate and print the elapsed time
     clock_gettime(CLOCK_MONOTONIC, &end_time);
     float spentTime = ((end_time.tv_sec - start_time.tv_sec)) + ((end_time.tv_nsec - start_time.tv_nsec)) * 1e-9;
-    printf("Time spent: %.3f seconds\n", spentTime);
+    printf("'%s', %u x %u, %u iterations: %.4f seconds", filterNames[filterIndex], image->width, image->height, iterations, spentTime);
+#if 0
     // calculate theoretical occupancy
     int max_active_blocks;
     int block_size_1d = block_size.x*block_size.y;
@@ -223,7 +223,6 @@ int main(int argc, char **argv) {
                                                   block_size_1d,
                                                   0);
 
-#if 0
     int device;
     hipDeviceProp_t props;
     hipGetDevice(&device);
