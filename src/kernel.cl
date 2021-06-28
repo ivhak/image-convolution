@@ -1,3 +1,6 @@
+#define BLOCK_X 16
+#define BLOCK_Y 16
+
 typedef struct pi {
     uchar b;
     uchar g;
@@ -6,11 +9,9 @@ typedef struct pi {
 
 // Multiplies A*x, leaving the result in y.
 // A is a row-major matrix, meaning the (i,j) element is at A[i*ncols+j].
-__kernel void applyFIlter(__global pixel *out, __global pixel *in,
-                     uint width, uint height, uint filterDim, float filterFactor)
+__kernel void applyFilter(__global pixel *out, __global pixel *in, __global int *filter,
+                          uint width, uint height, uint filterDim, float filterFactor)
 {
-    __global int d_filter[25];
-
     size_t global_x = get_global_id(0);
     size_t global_y = get_global_id(1);
     if (global_x >= width || global_y >= height)  return;
@@ -31,13 +32,13 @@ __kernel void applyFIlter(__global pixel *out, __global pixel *in,
     const int num_groups_x = get_num_groups(0);
     const int num_groups_y = get_num_groups(1);
 
-    const bool P_W = local_id_x == 0             && group_id_x > 0;
-    const bool P_N = local_id_y == 0             && group_id_y > 0;
-    const bool P_E = local_id_x == local_dim_x-1 && group_id_x < num_groups_x-1;
-    const bool P_S = local_id_y == local_dim_y-1 && group_id_y < num_groups_y-1;
+    const bool P_W = local_id_x == 0              && group_id_x > 0;
+    const bool P_N = local_id_y == 0              && group_id_y > 0;
+    const bool P_E = local_id_x == local_size_x-1 && group_id_x < num_groups_x-1;
+    const bool P_S = local_id_y == local_size_y-1 && group_id_y < num_groups_y-1;
 
-    uint x = threadIdx.x + padding;
-    uint y = threadIdx.y + padding;
+    uint x = local_id_x + padding;
+    uint y = local_id_y + padding;
 
     // Fill in the halo. Each thread fill in the pixel it's index points to. If
     // it is a border thread, it also has to load the `padding` amount of
@@ -89,7 +90,7 @@ __kernel void applyFIlter(__global pixel *out, __global pixel *in,
             }
         }
     }
-    barrier();
+    barrier(CLK_GLOBAL_MEM_FENCE);
 
     const uint filterCenter = (filterDim / 2);
     int ar = 0, ag = 0, ab = 0;
@@ -103,9 +104,9 @@ __kernel void applyFIlter(__global pixel *out, __global pixel *in,
             int global_yy = global_y + (ky - filterCenter);
             int global_xx = global_x + (kx - filterCenter);
             if (global_xx >= 0 && global_xx < (int) width && global_yy >=0 && global_yy < (int) height) {
-                ar += shared_in[yy][xx].r * d_filter[nky * filterDim + nkx];
-                ag += shared_in[yy][xx].g * d_filter[nky * filterDim + nkx];
-                ab += shared_in[yy][xx].b * d_filter[nky * filterDim + nkx];
+                ar += shared_in[yy][xx].r * filter[nky * filterDim + nkx];
+                ag += shared_in[yy][xx].g * filter[nky * filterDim + nkx];
+                ab += shared_in[yy][xx].b * filter[nky * filterDim + nkx];
             }
         }
     }

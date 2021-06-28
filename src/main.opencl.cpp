@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
     const size_t size_of_filter = filterDims[filterIndex]*filterDims[filterIndex]*sizeof(int);
 
     // OpenCL source can be placed in the source code as text strings or read from another file.
-    char *source_str = load_kernel_source("src/kernel.simple.cl");
+    char *source_str = load_kernel_source("src/kernel.cl");
 
     // Timing
     struct timespec start_time, end_time;
@@ -171,7 +171,7 @@ int main(int argc, char **argv) {
     clFinish(queue);
 
     // Copy back from the device-side array
-    cl_mem d_actual_image_data_out = iterations % 2 == 1 ? d_image_data_in : d_image_data_out;
+    cl_mem d_actual_image_data_out = iterations % 2 == 0 ? d_image_data_in : d_image_data_out;
     err = clEnqueueReadBuffer(queue, d_actual_image_data_out, CL_TRUE, 0, size_of_all_pixels, image->rawdata, 0, NULL, NULL);
     DIE_IF_CL(err, "Failed to copy back to device.");
 
