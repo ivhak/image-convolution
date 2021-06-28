@@ -34,6 +34,9 @@ cuda: $(CUDA_OUT)
 opencl: $(OPENCL_OUT)
 serial: $(SERIAL_OUT)
 
+bmpdiff: $(LIB_OBJ) src/bmpdiff.c
+	$(CC) $(CFLAGS) $^ -o $@
+
 
 $(CUDA_OUT): $(LIB_OBJ) $(CUDA_SRC) 
 	$(CUDA_CC) $(CFLAGS) $^ -o $@
@@ -54,5 +57,5 @@ $(SERIAL_OUT): $(SERIAL_SRC) $(LIB_OBJ)
 	$(CC) -c $(CFLAGS) $< -o $@
 
 clean:
-	rm -Rf $(LIB_OBJ) $(OPENCL_OBJ)  $(CUDA_OUT) $(HIP_OUT) $(SERIAL_OUT) $(OPENCL_OUT)
+	rm -Rf $(LIB_OBJ) $(OPENCL_OBJ)  $(CUDA_OUT) $(HIP_OUT) $(SERIAL_OUT) $(OPENCL_OUT) bmpdiff
 
