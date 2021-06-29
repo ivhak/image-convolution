@@ -27,6 +27,11 @@ else
 CFLAGS := -O2
 endif
 
+# Turn of shared memory in the Cuda, HIP and OpenCl implementations
+ifdef NO_SHARED_MEM
+DFLAGS += -DNO_SHARED_MEM
+endif
+
 .PHONY: clean
 
 hip: $(HIP_OUT)
@@ -37,15 +42,14 @@ serial: $(SERIAL_OUT)
 bmpdiff: $(LIB_OBJ) src/bmpdiff.c
 	$(CC) $(CFLAGS) $^ -o $@
 
-
 $(CUDA_OUT): $(LIB_OBJ) $(CUDA_SRC)
-	$(CUDA_CC) $(CFLAGS) $^ -o $@
+	$(CUDA_CC) $(CFLAGS) $(DFLAGS) $^ -o $@
 
 $(HIP_OUT): $(LIB_OBJ) $(HIP_SRC)
-	$(HIP_CC) $(CFLAGS) $^ -o $@
+	$(HIP_CC) $(CFLAGS) $(DFLAGS) $^ -o $@
 
 $(OPENCL_OBJ): $(OPENCL_SRC)
-	$(CC) -c $(CFLAGS) $(OPENCL_DFLAGS) $(OPENCL_IFLAGS) $^ -o $@
+	$(CC) -c $(CFLAGS) $(DFLAGS) $(OPENCL_DFLAGS) $(OPENCL_IFLAGS) $^ -o $@
 
 $(OPENCL_OUT): $(LIB_OBJ) $(OPENCL_OBJ)
 	$(CC) $^ $(OPENCL_LFLAGS) -o $@

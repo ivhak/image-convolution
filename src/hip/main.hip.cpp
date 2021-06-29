@@ -33,11 +33,17 @@ void applyFilter(pixel *out, pixel *in, unsigned int width, unsigned int height,
 
     if (global_x >= width || global_y >= height)  return;
 
-    const int padding = (filterDim-1)/2;
+#ifdef NO_SHARED_MEM
+    pixel *shared_in = in;
+    unsigned int x = global_x;
+    unsigned int y = global_y;
+#else
 
 
     // All pixels needed for this block, including the halo.
     __shared__ pixel shared_in[BLOCK_X+4][BLOCK_Y+4];
+
+    const int padding = (filterDim-1)/2;
 
     const bool P_W = threadIdx.x == 0             && blockIdx.x > 0;
     const bool P_N = threadIdx.y == 0             && blockIdx.y > 0;
@@ -98,6 +104,7 @@ void applyFilter(pixel *out, pixel *in, unsigned int width, unsigned int height,
         }
     }
     __syncthreads();
+#endif
 
     unsigned int const filterCenter = (filterDim / 2);
     int ar = 0, ag = 0, ab = 0;
@@ -111,9 +118,16 @@ void applyFilter(pixel *out, pixel *in, unsigned int width, unsigned int height,
             int global_yy = global_y + (ky - filterCenter);
             int global_xx = global_x + (kx - filterCenter);
             if (global_xx >= 0 && global_xx < (int) width && global_yy >=0 && global_yy < (int) height) {
+#ifdef NO_SHARED_MEM
+                ar += in[yy*width+xx].r * d_filter[nky * filterDim + nkx];
+                ag += in[yy*width+xx].g * d_filter[nky * filterDim + nkx];
+                ab += in[yy*width+xx].b * d_filter[nky * filterDim + nkx];
+
+#else
                 ar += shared_in[yy][xx].r * d_filter[nky * filterDim + nkx];
                 ag += shared_in[yy][xx].g * d_filter[nky * filterDim + nkx];
                 ab += shared_in[yy][xx].b * d_filter[nky * filterDim + nkx];
+#endif
             }
         }
     }

@@ -45,8 +45,6 @@ int main(int argc, char **argv) {
         error_exit(&input,&output);
     }
 
-    printf("'%s', %u x %u pixels, %u iterations:", filterNames[filterIndex], image->width, image->height, iterations);
-
     // Here we do the actual computation!
     // image->data is a 2-dimensional array of pixel which is accessed row first ([y][x])
     // each pixel is a struct of 3 unsigned char for the red, blue and green colour channel
@@ -97,7 +95,11 @@ int main(int argc, char **argv) {
     free(source_str);
 
     // Build the compute program executable
+#ifdef NO_SHARED_MEM
+    err = clBuildProgram(program, 0, NULL, "-DNO_SHARED_MEM", NULL, NULL);
+#else
     err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
+#endif
     if (err == CL_BUILD_PROGRAM_FAILURE) {
         size_t log_size;
         char *log;
