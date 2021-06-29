@@ -18,6 +18,8 @@ extern "C" {
 #define DIE_IF_CL(err_code, str) do { if (err != CL_SUCCESS) {fprintf(stderr,"%d: %s\n", err_code, str); exit(1); } } while (0)
 
 char *load_kernel_source(const char *filename);
+void print_platform_info(cl_platform_id platform_id);
+void print_device_info(cl_device_id device_id);
 
 int main(int argc, char **argv) {
     /*
@@ -79,6 +81,9 @@ int main(int argc, char **argv) {
 
     err = clGetDeviceIDs(platform_id, CL_DEVICE_TYPE_GPU, 1, &device_id, NULL);
     DIE_IF_CL(err, "Could not get device.");
+
+    // print_platform_info(platform_id);
+    // print_device_info(device_id);
 
     // Create a compute context with the GPU
     context = clCreateContextFromType(NULL, CL_DEVICE_TYPE_GPU, NULL, NULL, &err);
@@ -202,6 +207,29 @@ int main(int argc, char **argv) {
 
     graceful_exit(&input,&output);
 };
+
+
+void print_platform_info(cl_platform_id platform_id)
+{
+    char *profile = NULL;
+    size_t size;
+    clGetPlatformInfo(platform_id, CL_PLATFORM_PROFILE, 0, profile, &size);
+    profile = (char*)malloc(size);
+    clGetPlatformInfo(platform_id, CL_PLATFORM_PROFILE,size, profile, NULL);
+    printf("%s\n", profile);
+    free(profile);
+}
+
+void print_device_info(cl_device_id device_id)
+{
+    size_t size;
+    char *device = NULL;
+    clGetDeviceInfo(device_id, CL_DEVICE_VENDOR, 0, NULL, &size);
+    device = (char*)malloc(sizeof(char)*size);
+    clGetDeviceInfo(device_id, CL_DEVICE_VENDOR, size, device, NULL);
+    printf("%s\n", device);
+    free(device);
+}
 
 char *load_kernel_source(const char *filename)
 {
