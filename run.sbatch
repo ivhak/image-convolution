@@ -2,7 +2,8 @@
 #SBATCH --job-name="mi100q_01_nodes_01_tasks"
 #SBATCH --partition=mi100q
 #SBATCH --time=0-01:00:00
-#SBATCH --gres=gpu:1
+# # SBATCH --gres=gpu:1
+#SBATCH --nodelist=n004
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
