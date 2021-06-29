@@ -1,24 +1,26 @@
 #!/usr/bin/env bash
 
+set -o errexit
+
 KERNELS=(sobelY sobelX laplacian1 laplacian2 laplacian3 gaussian )
-BIN="$1"
+BINS=("image_convolution_opencl" "image_convolution_hip")
+INPUT_IMAGE=./data/before.bmp
 
-if [[ ! -x $1 ]]; then
-    echo "\"$1\" is not an executable file"
-fi
+for bin in ${BINS[*]}; do
+    OUTDIR="out/${bin}"
+    mkdir -p "${OUTDIR}"
 
-OUTDIR="out/${BIN}"
+    LOGFILE="${OUTDIR}/logs.txt"
+    SUMFILE="${OUTDIR}/sums.txt"
 
-LOGFILE="${OUTDIR}/logs.txt"
-SUMFILE="${OUTDIR}/sums.txt"
-
-mkdir -p "${OUTDIR}"
-echo "" > "${LOGFILE}"
-echo "" > "${SUMFILE}"
-for k in {0..5}; do
-    for i in 5 10 50 100; do
-        FILE="${OUTDIR}/${BIN}-${KERNELS[$k]}.k-$k.i-$i.bmp"
-        ./${BIN} -i "$i" -k "$k" data/before.bmp "${FILE}" | tee -a "${LOGFILE}"
-        md5sum "${FILE}" >> "${SUMFILE}"
+    echo "" > "${LOGFILE}"
+    echo "" > "${SUMFILE}"
+    echo "--------- $bin"
+    for k in {0..5}; do
+        for i in 5 10 50 100; do
+            FILE="${OUTDIR}/${bin}-${KERNELS[$k]}.k-$k.i-$i.bmp"
+            ./${bin} -i "$i" -k "$k" "${INPUT_IMAGE}" "${FILE}" | tee -a "${LOGFILE}"
+            md5sum "${FILE}" >> "${SUMFILE}"
+        done
     done
 done
