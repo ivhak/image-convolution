@@ -1,7 +1,7 @@
-libs/*.o
-*.pdf
-*.zip
+*/*.o
 image_convolution_hip
 image_convolution_cuda
+image_convolution_serial
+image_convolution_opencl
 out/
-report/
+jobs/
