@@ -65,6 +65,10 @@ int main(int argc, char *argv[])
         }
 
     printf("Total number of differing pixels: %d\n", pixels_differ_count);
-    printf("Saving diff to diff.bmp\n");
-    saveBmpImage(diff, "diff.bmp");
+    if (pixels_differ_count > 0) {
+        char diff_filename[1024];
+        snprintf(diff_filename, 1024, "%s-%s.diff.bmp", filename1, filename2);
+        printf("More than 0 pixels differ, saving diff to %s", diff_filename);
+        saveBmpImage(diff, diff_filename);
+    }
 }
