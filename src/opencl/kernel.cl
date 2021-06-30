@@ -18,11 +18,7 @@ __kernel void applyFilter(__global pixel *out, __global pixel *in, __global int 
 
 
 
-#ifdef NO_SHARED_MEM
-    __global pixel *shared_in = in;
-    uint x = global_x;
-    uint y = global_y;
-#else
+#ifdef SHARED_MEM
     // All pixels needed for this block, including the halo.
     __local pixel shared_in[BLOCK_X+4][BLOCK_Y+4];
 
@@ -97,6 +93,9 @@ __kernel void applyFilter(__global pixel *out, __global pixel *in, __global int 
         }
     }
     barrier(CLK_LOCAL_MEM_FENCE);
+#else
+    uint x = global_x;
+    uint y = global_y;
 #endif
 
     const uint filterCenter = (filterDim / 2);
@@ -111,15 +110,14 @@ __kernel void applyFilter(__global pixel *out, __global pixel *in, __global int 
             int global_yy = global_y + (ky - filterCenter);
             int global_xx = global_x + (kx - filterCenter);
             if (global_xx >= 0 && global_xx < (int) width && global_yy >=0 && global_yy < (int) height) {
-#ifdef NO_SHARED_MEM
-                ar += in[yy*width+xx].r * filter[nky * filterDim + nkx];
-                ag += in[yy*width+xx].g * filter[nky * filterDim + nkx];
-                ab += in[yy*width+xx].b * filter[nky * filterDim + nkx];
-
-#else
+#ifdef SHARED_MEM
                 ar += shared_in[yy][xx].r * filter[nky * filterDim + nkx];
                 ag += shared_in[yy][xx].g * filter[nky * filterDim + nkx];
                 ab += shared_in[yy][xx].b * filter[nky * filterDim + nkx];
+#else
+                ar += in[yy*width+xx].r * filter[nky * filterDim + nkx];
+                ag += in[yy*width+xx].g * filter[nky * filterDim + nkx];
+                ab += in[yy*width+xx].b * filter[nky * filterDim + nkx];
 #endif
             }
         }

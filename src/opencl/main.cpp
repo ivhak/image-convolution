@@ -47,9 +47,6 @@ int main(int argc, char **argv) {
         error_exit(&input,&output);
     }
 
-    // Here we do the actual computation!
-    // image->data is a 2-dimensional array of pixel which is accessed row first ([y][x])
-    // each pixel is a struct of 3 unsigned char for the red, blue and green colour channel
 
     const size_t size_of_all_pixels = (image->width)*(image->height)*sizeof(pixel);
     const size_t size_of_filter = filterDims[filterIndex]*filterDims[filterIndex]*sizeof(int);
@@ -100,8 +97,8 @@ int main(int argc, char **argv) {
     free(source_str);
 
     // Build the compute program executable
-#ifdef NO_SHARED_MEM
-    err = clBuildProgram(program, 0, NULL, "-DNO_SHARED_MEM", NULL, NULL);
+#ifdef SHARED_MEM
+    err = clBuildProgram(program, 0, NULL, "-DSHARED_MEM", NULL, NULL);
 #else
     err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
 #endif
@@ -169,6 +166,7 @@ int main(int argc, char **argv) {
 
     // Start time measurement
     clock_gettime(CLOCK_MONOTONIC, &start_time);
+
     for (unsigned int i = 0; i < iterations; i++) {
         err = clEnqueueNDRangeKernel(queue, i % 2 == 0 ? kernel1 : kernel2, 2, NULL, global_work_size, local_work_size, 0, NULL, NULL);
         DIE_IF_CL(err, "Failed to run kernel.");

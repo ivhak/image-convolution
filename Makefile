@@ -28,8 +28,12 @@ CFLAGS := -O2
 endif
 
 # Turn of shared memory in the Cuda, HIP and OpenCl implementations
-ifdef NO_SHARED_MEM
-DFLAGS += -DNO_SHARED_MEM
+ifdef SHARED_MEM
+DFLAGS += -DSHARED_MEM
+endif
+
+ifdef VERBOSE
+DFLAGS += -DVERBOSE
 endif
 
 .PHONY: clean

@@ -33,13 +33,7 @@ void applyFilter(pixel *out, pixel *in, unsigned int width, unsigned int height,
 
     if (global_x >= width || global_y >= height)  return;
 
-#ifdef NO_SHARED_MEM
-    pixel *shared_in = in;
-    unsigned int x = global_x;
-    unsigned int y = global_y;
-#else
-
-
+#ifdef SHARED_MEM
     // All pixels needed for this block, including the halo.
     __shared__ pixel shared_in[BLOCK_X+4][BLOCK_Y+4];
 
@@ -104,6 +98,9 @@ void applyFilter(pixel *out, pixel *in, unsigned int width, unsigned int height,
         }
     }
     __syncthreads();
+#else
+    unsigned int x = global_x;
+    unsigned int y = global_y;
 #endif
 
     unsigned int const filterCenter = (filterDim / 2);
@@ -118,15 +115,14 @@ void applyFilter(pixel *out, pixel *in, unsigned int width, unsigned int height,
             int global_yy = global_y + (ky - filterCenter);
             int global_xx = global_x + (kx - filterCenter);
             if (global_xx >= 0 && global_xx < (int) width && global_yy >=0 && global_yy < (int) height) {
-#ifdef NO_SHARED_MEM
-                ar += in[yy*width+xx].r * d_filter[nky * filterDim + nkx];
-                ag += in[yy*width+xx].g * d_filter[nky * filterDim + nkx];
-                ab += in[yy*width+xx].b * d_filter[nky * filterDim + nkx];
-
-#else
+#ifdef SHARED_MEM
                 ar += shared_in[yy][xx].r * d_filter[nky * filterDim + nkx];
                 ag += shared_in[yy][xx].g * d_filter[nky * filterDim + nkx];
                 ab += shared_in[yy][xx].b * d_filter[nky * filterDim + nkx];
+#else
+                ar += in[yy*width+xx].r * d_filter[nky * filterDim + nkx];
+                ag += in[yy*width+xx].g * d_filter[nky * filterDim + nkx];
+                ab += in[yy*width+xx].b * d_filter[nky * filterDim + nkx];
 #endif
             }
         }
@@ -189,7 +185,7 @@ int main(int argc, char **argv) {
     HIP_CHECK(hipMalloc((void **)&d_image_rawdata,         size_of_all_pixels));
 
     // Set the device side arrays.
-    HIP_CHECK(hipMemset(d_process_image_rawdata, 0, size_of_all_pixels));
+    // HIP_CHECK(hipMemset(d_process_image_rawdata, 0, size_of_all_pixels));
     HIP_CHECK(hipMemcpy(d_image_rawdata, image->rawdata, size_of_all_pixels, hipMemcpyHostToDevice));
     HIP_CHECK(hipMemcpyToSymbol(HIP_SYMBOL(d_filter), filters[filterIndex], size_of_filter));
 
@@ -200,23 +196,15 @@ int main(int argc, char **argv) {
     dim3 grid_size((image->width  + block_size.x - 1) / block_size.x,
                    (image->height + block_size.y - 1) / block_size.y);
 
-#if 0
-    printf("Block size: %dx%d\n", block_size.x, block_size.y);
-    printf("Grid size:  %dx%d\n", grid_size.x, grid_size.y);
-    printf("# threads:  %d\n", block_size.x*grid_size.x*block_size.y*grid_size.y);
-    printf("# pixels:   %d\n", image->width*image->height);
-#endif
-
     // Start time measurement
     struct timespec start_time, end_time;
     clock_gettime(CLOCK_MONOTONIC, &start_time);
 
     for (unsigned int i = 0; i < iterations; i++) {
-        hipLaunchKernelGGL(applyFilter, dim3(grid_size), dim3(block_size), 0, 0, d_process_image_rawdata,
-                                               d_image_rawdata,
-                                               image->width, image->height,
-                                               filterDims[filterIndex],
-                                               filterFactors[filterIndex]);
+        hipLaunchKernelGGL(applyFilter, dim3(grid_size), dim3(block_size), 0, 0,
+                           d_process_image_rawdata, d_image_rawdata,
+                           image->width, image->height,
+                           filterDims[filterIndex], filterFactors[filterIndex]);
         HIP_CHECK(hipGetLastError());
         // Swap the image and process_image
         swapImageRawdata(&d_image_rawdata, &d_process_image_rawdata);
@@ -228,7 +216,7 @@ int main(int argc, char **argv) {
     clock_gettime(CLOCK_MONOTONIC, &end_time);
     float spentTime = ((end_time.tv_sec - start_time.tv_sec)) + ((end_time.tv_nsec - start_time.tv_nsec)) * 1e-9;
     log_execution(filterNames[filterIndex], image->width, image->height, iterations, spentTime);
-#if 0
+#ifdef VERBOSE
     // calculate theoretical occupancy
     int max_active_blocks;
     int block_size_1d = block_size.x*block_size.y;
@@ -244,6 +232,7 @@ int main(int argc, char **argv) {
     float occupancy = (max_active_blocks * block_size_1d / props.warpSize) /
                       (float)(props.maxThreadsPerMultiProcessor / props.warpSize);
 
+    printf("Max active blocks: %d\n", max_active_blocks);
     printf("Launched blocks of size %d. Theoretical occupancy: %f\n", block_size.x*block_size.y, occupancy);
 #endif
 

@@ -34,11 +34,8 @@ void applyFilter(pixel *out, pixel *in, unsigned int width, unsigned int height,
 
     if (global_x >= width || global_y >= height)  return;
 
-#ifdef NO_SHARED_MEM
-    pixel *shared_in = in;
-    unsigned int x = global_x;
-    unsigned int y = global_y;
-#else
+
+#ifdef SHARED_MEM
     const int padding = (filterDim-1)/2;
 
 
@@ -104,6 +101,9 @@ void applyFilter(pixel *out, pixel *in, unsigned int width, unsigned int height,
         }
     }
     __syncthreads();
+#else
+    unsigned int x = global_x;
+    unsigned int y = global_y;
 #endif
 
     unsigned int const filterCenter = (filterDim / 2);
@@ -118,15 +118,14 @@ void applyFilter(pixel *out, pixel *in, unsigned int width, unsigned int height,
             int global_yy = global_y + (ky - filterCenter);
             int global_xx = global_x + (kx - filterCenter);
             if (global_xx >= 0 && global_xx < (int) width && global_yy >=0 && global_yy < (int) height) {
-#ifdef NO_SHARED_MEM
-                ar += in[yy*width+xx].r * d_filter[nky * filterDim + nkx];
-                ag += in[yy*width+xx].g * d_filter[nky * filterDim + nkx];
-                ab += in[yy*width+xx].b * d_filter[nky * filterDim + nkx];
-
-#else
+#ifdef SHARED_MEM
                 ar += shared_in[yy][xx].r * d_filter[nky * filterDim + nkx];
                 ag += shared_in[yy][xx].g * d_filter[nky * filterDim + nkx];
                 ab += shared_in[yy][xx].b * d_filter[nky * filterDim + nkx];
+#else
+                ar += in[yy*width+xx].r * d_filter[nky * filterDim + nkx];
+                ag += in[yy*width+xx].g * d_filter[nky * filterDim + nkx];
+                ab += in[yy*width+xx].b * d_filter[nky * filterDim + nkx];
 #endif
             }
         }
