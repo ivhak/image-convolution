@@ -5,7 +5,7 @@ HIP_SRC  := src/hip/main.hip.cpp
 HIP_OUT  := image_convolution_hip
 
 OPENCL_SRC := src/opencl/main.cpp
-OPENCL_OBJ := src/opencl/main.l.o
+OPENCL_OBJ := src/opencl/main.o
 OPENCL_OUT := image_convolution_opencl
 OPENCL_DFLAGS := -DCL_TARGET_OPENCL_VERSION=220
 OPENCL_IFLAGS := -I/opt/rocm-4.2.0/opencl/include
@@ -45,8 +45,12 @@ hip: $(HIP_OUT)
 cuda: $(CUDA_OUT)
 opencl: $(OPENCL_OUT)
 serial: $(SERIAL_OUT)
+tools: bmpdiff bmptile
 
-bmpdiff: $(LIB_OBJ) src/bmpdiff.c
+bmpdiff: $(LIB_OBJ) src/tools/bmpdiff.c
+	$(CC) $(CFLAGS) $^ -o $@
+
+bmptile: $(LIB_OBJ) src/tools/bmptile.c
 	$(CC) $(CFLAGS) $^ -o $@
 
 $(CUDA_OUT): $(LIB_OBJ) $(CUDA_SRC)
@@ -68,5 +72,5 @@ $(SERIAL_OUT): $(SERIAL_SRC) $(LIB_OBJ)
 	$(CC) -c $(CFLAGS) $< -o $@
 
 clean:
-	rm -Rf $(LIB_OBJ) $(OPENCL_OBJ)  $(CUDA_OUT) $(HIP_OUT) $(SERIAL_OUT) $(OPENCL_OUT) bmpdiff
+	rm -Rf $(LIB_OBJ) $(OPENCL_OBJ)  $(CUDA_OUT) $(HIP_OUT) $(SERIAL_OUT) $(OPENCL_OUT) bmpdiff bmptile
 
