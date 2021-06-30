@@ -27,81 +27,16 @@ extern "C" {
 __constant__ __device__ int d_filter[25];
 // Apply convolutional filter on image data
 __global__
-void applyFilter(pixel *out, pixel *in, unsigned int width, unsigned int height, unsigned int filterDim, float filterFactor) {
-    unsigned int global_x = threadIdx.x + blockIdx.x*blockDim.x;
-    unsigned int global_y = threadIdx.y + blockIdx.y*blockDim.y;
+void applyFilter(
+        unsigned char *red_in, unsigned char *red_out,
+        unsigned char *green_in, unsigned char *green_out,
+        unsigned char *blue_in, unsigned char *blue_out,
+        unsigned int width, unsigned int height, unsigned int filterDim, float filterFactor
+) {
+    unsigned int x = threadIdx.x + blockIdx.x*blockDim.x;
+    unsigned int y = threadIdx.y + blockIdx.y*blockDim.y;
 
-    if (global_x >= width || global_y >= height)  return;
-
-#ifdef SHARED_MEM
-    // All pixels needed for this block, including the halo.
-    __shared__ pixel shared_in[BLOCK_X+4][BLOCK_Y+4];
-
-    const int padding = (filterDim-1)/2;
-
-    const bool P_W = threadIdx.x == 0             && blockIdx.x > 0;
-    const bool P_N = threadIdx.y == 0             && blockIdx.y > 0;
-    const bool P_E = threadIdx.x == blockDim.x -1 && blockIdx.x < gridDim.x -1;
-    const bool P_S = threadIdx.y == blockDim.y -1 && blockIdx.y < gridDim.y -1;
-
-    unsigned int x = threadIdx.x + padding;
-    unsigned int y = threadIdx.y + padding;
-
-    // Fill in the halo. Each thread fills in the pixel its index points to. If
-    // it is a border thread, it also has to load the `padding` amount of
-    // pixels in its border direction. Corner threads have to fill in pixels
-    // in both border directions, as well as the diagonal.
-    //
-    // Non-corner threads only have to copy `padding+1` number of pixels,
-    // and the corner threads have to copy `padding+1`^2. With the filters used
-    // in this program, this maxes out at 3 pixels for the non-corner threads,
-    // and 9 for the corner threads.
-
-    shared_in[y][x] = in[global_y*width + global_x];
-    for (int i = 1; i < padding+1; i++) {
-        if (P_W) shared_in[y][x-i] = in[global_y*width     + global_x - i];
-        if (P_E) shared_in[y][x+i] = in[global_y*width     + global_x + i];
-        if (P_N) shared_in[y-i][x] = in[(global_y-i)*width + global_x];
-        if (P_S) shared_in[y+i][x] = in[(global_y+i)*width + global_x];
-
-        /* north west */
-        if (P_N && P_W){
-            shared_in[y-i][x-i] = in[(global_y-i)*width + global_x - i];
-            for (int j = 1; j < i; j++) {
-                shared_in[y-i][x-i+j] = in[(global_y-i)*width + global_x - i+j];
-                shared_in[y-i+j][x-i] = in[(global_y-i+j)*width + global_x - i];
-            }
-        }
-        /* south west */
-        if (P_S && P_W)  {
-            shared_in[y+i][x-i] = in[(global_y+i)*width + global_x - i];
-            for (int j = 1; j < i; j++) {
-                shared_in[y+i][x-i+j] = in[(global_y+i)*width + global_x - i+j];
-                shared_in[y+i-j][x-i] = in[(global_y+i-j)*width + global_x - i];
-            }
-        }
-        /* north east */
-        if (P_N && P_E) {
-            shared_in[y-i][x+i] = in[(global_y-i)*width + global_x + i];
-            for (int j = 1; j < i; j++) {
-                shared_in[y-i][x+i-j] = in[(global_y-i)*width + global_x + i-j];
-                shared_in[y-i+j][x+i] = in[(global_y-i+j)*width + global_x + i];
-            }
-        }
-        /* south east*/
-        if (P_S && P_E) {
-            shared_in[y+i][x+i] = in[(global_y+i)*width + global_x + i];
-            for (int j = 1; j < i; j++) {
-                shared_in[y+i][x+i-j] = in[(global_y+i)*width + global_x + i-j];
-                shared_in[y+i-j][x+i] = in[(global_y+i-j)*width + global_x + i];
-            }
-        }
-    }
-    __syncthreads();
-#else
-    unsigned int x = global_x;
-    unsigned int y = global_y;
-#endif
+    if (x >= width || y >= height)  return;
 
     unsigned int const filterCenter = (filterDim / 2);
     int ar = 0, ag = 0, ab = 0;
@@ -112,18 +47,10 @@ void applyFilter(pixel *out, pixel *in, unsigned int width, unsigned int height,
 
             int yy = y + (ky - filterCenter);
             int xx = x + (kx - filterCenter);
-            int global_yy = global_y + (ky - filterCenter);
-            int global_xx = global_x + (kx - filterCenter);
-            if (global_xx >= 0 && global_xx < (int) width && global_yy >=0 && global_yy < (int) height) {
-#ifdef SHARED_MEM
-                ar += shared_in[yy][xx].r * d_filter[nky * filterDim + nkx];
-                ag += shared_in[yy][xx].g * d_filter[nky * filterDim + nkx];
-                ab += shared_in[yy][xx].b * d_filter[nky * filterDim + nkx];
-#else
-                ar += in[yy*width+xx].r * d_filter[nky * filterDim + nkx];
-                ag += in[yy*width+xx].g * d_filter[nky * filterDim + nkx];
-                ab += in[yy*width+xx].b * d_filter[nky * filterDim + nkx];
-#endif
+            if (xx >= 0 && xx < (int) width && yy >=0 && yy < (int) height) {
+                ar += red_in  [yy*width+xx] * d_filter[nky * filterDim + nkx];
+                ag += green_in[yy*width+xx] * d_filter[nky * filterDim + nkx];
+                ab += blue_in [yy*width+xx] * d_filter[nky * filterDim + nkx];
             }
         }
     }
@@ -135,11 +62,17 @@ void applyFilter(pixel *out, pixel *in, unsigned int width, unsigned int height,
     ag = (ag < 0) ? 0 : ag;
     ab = (ab < 0) ? 0 : ab;
 
-    out[global_y*width + global_x].r = (ar > 255) ? 255 : ar;
-    out[global_y*width + global_x].g = (ag > 255) ? 255 : ag;
-    out[global_y*width + global_x].b = (ab > 255) ? 255 : ab;
+    red_out  [y*width + x] = (ar > 255) ? 255 : ar;
+    green_out[y*width + x] = (ag > 255) ? 255 : ag;
+    blue_out [y*width + x] = (ab > 255) ? 255 : ab;
 }
 
+void swap_channel(unsigned char **in, unsigned char **out)
+{
+    unsigned char *tmp = *in;
+    *in = *out;
+    *out = tmp;
+}
 
 int main(int argc, char **argv) {
     /*
@@ -173,20 +106,43 @@ int main(int argc, char **argv) {
     // each pixel is a struct of 3 unsigned char for the red, blue and green colour channel
     bmpImage *processImage = newBmpImage(image->width, image->height);
 
-    const size_t size_of_all_pixels = (image->width)*(image->height)*sizeof(pixel);
+    const size_t size_of_channel = (image->width)*(image->height)*sizeof(unsigned char);
     const size_t size_of_filter = filterDims[filterIndex]*filterDims[filterIndex]*sizeof(int);
 
     // Allocate and copy over to device-side arrays
-    pixel *d_image_rawdata;
-    pixel *d_process_image_rawdata;
+    // pixel *d_image_rawdata;
+    // pixel *d_process_image_rawdata;
+
+    bmpImageChannel *image_channel_r   = newBmpImageChannel(image->width, image->height);
+    bmpImageChannel *image_channel_g = newBmpImageChannel(image->width, image->height);
+    bmpImageChannel *image_channel_b  = newBmpImageChannel(image->width, image->height);
+
+    extractImageChannel(image_channel_r,   image, extractRed);
+    extractImageChannel(image_channel_g, image, extractGreen);
+    extractImageChannel(image_channel_b,  image, extractBlue);
+
+    unsigned char *d_channel_in_r;
+    unsigned char *d_channel_out_r;
+    unsigned char *d_channel_in_b;
+    unsigned char *d_channel_out_b;
+    unsigned char *d_channel_in_g;
+    unsigned char *d_channel_out_g;
 
     // Allocate space for both device copies of the image, as well as for the filter.
-    HIP_CHECK(hipMalloc((void **)&d_process_image_rawdata, size_of_all_pixels));
-    HIP_CHECK(hipMalloc((void **)&d_image_rawdata,         size_of_all_pixels));
+    HIP_CHECK(hipMalloc((void **)&d_channel_in_r,  size_of_channel));
+    HIP_CHECK(hipMalloc((void **)&d_channel_out_r, size_of_channel));
+
+    HIP_CHECK(hipMalloc((void **)&d_channel_in_b,  size_of_channel));
+    HIP_CHECK(hipMalloc((void **)&d_channel_out_b, size_of_channel));
+
+    HIP_CHECK(hipMalloc((void **)&d_channel_in_g,  size_of_channel));
+    HIP_CHECK(hipMalloc((void **)&d_channel_out_g, size_of_channel));
 
     // Set the device side arrays.
-    // HIP_CHECK(hipMemset(d_process_image_rawdata, 0, size_of_all_pixels));
-    HIP_CHECK(hipMemcpy(d_image_rawdata, image->rawdata, size_of_all_pixels, hipMemcpyHostToDevice));
+    HIP_CHECK(hipMemcpy(d_channel_in_r, image_channel_r->rawdata, size_of_channel, hipMemcpyHostToDevice));
+    HIP_CHECK(hipMemcpy(d_channel_in_g, image_channel_g->rawdata, size_of_channel, hipMemcpyHostToDevice));
+    HIP_CHECK(hipMemcpy(d_channel_in_b, image_channel_b->rawdata, size_of_channel, hipMemcpyHostToDevice));
+
     HIP_CHECK(hipMemcpyToSymbol(HIP_SYMBOL(d_filter), filters[filterIndex], size_of_filter));
 
     // We want one thread per pixel. Set the block size, and based on that set
@@ -202,20 +158,29 @@ int main(int argc, char **argv) {
 
     for (unsigned int i = 0; i < iterations; i++) {
         hipLaunchKernelGGL(applyFilter, dim3(grid_size), dim3(block_size), 0, 0,
-                           d_process_image_rawdata, d_image_rawdata,
+                           d_channel_in_r,   d_channel_out_r,
+                           d_channel_in_g, d_channel_out_g,
+                           d_channel_in_b,  d_channel_out_b,
                            image->width, image->height,
                            filterDims[filterIndex], filterFactors[filterIndex]);
         HIP_CHECK(hipGetLastError());
         // Swap the image and process_image
-        swapImageRawdata(&d_image_rawdata, &d_process_image_rawdata);
+        swap_channel(&d_channel_in_r,  &d_channel_out_r);
+        swap_channel(&d_channel_in_g, &d_channel_out_g);
+        swap_channel(&d_channel_in_b, &d_channel_out_b);
     }
     // Copy back from the device-side array
-    HIP_CHECK(hipMemcpy(image->rawdata, d_image_rawdata, size_of_all_pixels, hipMemcpyDeviceToHost));
+    // HIP_CHECK(hipMemcpy(image->rawdata, d_image_rawdata, size_of_all_pixels, hipMemcpyDeviceToHost));
+    HIP_CHECK(hipMemcpy(image_channel_r->rawdata, d_channel_in_r, size_of_channel, hipMemcpyDeviceToHost));
+    HIP_CHECK(hipMemcpy(image_channel_g->rawdata, d_channel_in_g, size_of_channel, hipMemcpyDeviceToHost));
+    HIP_CHECK(hipMemcpy(image_channel_b->rawdata, d_channel_in_b, size_of_channel, hipMemcpyDeviceToHost));
 
     // Stop the timer; calculate and print the elapsed time
     clock_gettime(CLOCK_MONOTONIC, &end_time);
     float spentTime = ((end_time.tv_sec - start_time.tv_sec)) + ((end_time.tv_nsec - start_time.tv_nsec)) * 1e-9;
+
     log_execution(filterNames[filterIndex], image->width, image->height, iterations, spentTime);
+
 #ifdef VERBOSE
     // calculate theoretical occupancy
     int max_active_blocks;
@@ -237,9 +202,20 @@ int main(int argc, char **argv) {
     printf("Launched blocks of size %d. Theoretical occupancy: %f\n", block_size.x*block_size.y, occupancy);
 #endif
 
-    hipFree(d_image_rawdata);
-    hipFree(d_process_image_rawdata);
-    freeBmpImage(processImage);
+    hipFree(d_channel_in_r);
+    hipFree(d_channel_out_r);
+    hipFree(d_channel_in_g);
+    hipFree(d_channel_out_g);
+    hipFree(d_channel_in_b);
+    hipFree(d_channel_out_b);
+
+    for (int i = 0; i < image->height; i++)
+        for (int j = 0; j < image->width; j++) {
+            image->data[i][j].b = image_channel_b->data[i][j];
+            image->data[i][j].g = image_channel_g->data[i][j];
+            image->data[i][j].r = image_channel_r->data[i][j];
+        }
+
     //Write the image back to disk
     if (saveBmpImage(image, output) != 0) {
         fprintf(stderr, "Could not save output to '%s'!\n", output);
