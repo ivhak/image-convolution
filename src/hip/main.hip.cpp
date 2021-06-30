@@ -165,17 +165,18 @@ int main(int argc, char **argv) {
         swap_image_channels(&d_in.g, &d_out.g);
         swap_image_channels(&d_in.b, &d_out.b);
     }
-    // Stop the timer; calculate and print the elapsed time
-    clock_gettime(CLOCK_MONOTONIC, &end_time);
-    float spentTime = ((end_time.tv_sec - start_time.tv_sec)) + ((end_time.tv_nsec - start_time.tv_nsec)) * 1e-9;
 
-    log_execution(filterNames[filterIndex], image->width, image->height, iterations, spentTime);
     // Copy back from the device-side array
     // HIP_CHECK(hipMemcpy(image->rawdata, d_image_rawdata, size_of_all_pixels, hipMemcpyDeviceToHost));
     HIP_CHECK(hipMemcpy(image_channel_r->rawdata, d_in.r, size_of_channel, hipMemcpyDeviceToHost));
     HIP_CHECK(hipMemcpy(image_channel_g->rawdata, d_in.g, size_of_channel, hipMemcpyDeviceToHost));
     HIP_CHECK(hipMemcpy(image_channel_b->rawdata, d_in.b, size_of_channel, hipMemcpyDeviceToHost));
 
+    // Stop the timer; calculate and print the elapsed time
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+    float spentTime = ((end_time.tv_sec - start_time.tv_sec)) + ((end_time.tv_nsec - start_time.tv_nsec)) * 1e-9;
+
+    log_execution(filterNames[filterIndex], image->width, image->height, iterations, spentTime);
 
 #ifdef VERBOSE
     // calculate theoretical occupancy

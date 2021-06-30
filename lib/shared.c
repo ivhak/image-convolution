@@ -152,5 +152,5 @@ void parse_args(int argc, char **argv, unsigned *iterations, unsigned *filterInd
 
 void log_execution(const char *filter_name, unsigned width, unsigned height, unsigned iterations, float spent_time) {
 
-    printf("'%s', %u x %u, %u iterations: %.3f seconds\n", filter_name, width, height, iterations, spent_time);
+    printf("%-11s, %u x %u pixels, %4u iterations: %.3f seconds\n", filter_name, width, height, iterations, spent_time);
 }
