@@ -233,6 +233,7 @@ int main(int argc, char **argv) {
                       (float)(props.maxThreadsPerMultiProcessor / props.warpSize);
 
     printf("Max active blocks: %d\n", max_active_blocks);
+    printf("Max threads per multiprocessor: %d\n", props.maxThreadsPerMultiProcessor);
     printf("Launched blocks of size %d. Theoretical occupancy: %f\n", block_size.x*block_size.y, occupancy);
 #endif
 

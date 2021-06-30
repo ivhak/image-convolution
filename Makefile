@@ -21,13 +21,16 @@ CC      := gcc
 CUDA_CC := nvcc
 HIP_CC  := hipcc
 
+
+DFLAGS :=
 ifdef DEBUG
-CFLAGS := -g -O0 -DDEBUG
+CFLAGS := -g -O0
+DFLAGS += -DDEBUG
 else
-CFLAGS := -O2
+CFLAGS := -O3
 endif
 
-# Turn of shared memory in the Cuda, HIP and OpenCl implementations
+# Use shared memory in the Cuda, HIP and OpenCl implementations
 ifdef SHARED_MEM
 DFLAGS += -DSHARED_MEM
 endif

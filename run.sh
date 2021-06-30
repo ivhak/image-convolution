@@ -3,7 +3,8 @@
 set -o errexit
 
 KERNELS=(sobelY sobelX laplacian1 laplacian2 laplacian3 gaussian )
-BINS=("image_convolution_opencl" "image_convolution_hip")
+# BINS=("image_convolution_opencl" "image_convolution_hip")
+BINS=("image_convolution_hip")
 INPUT_IMAGE=./data/before.bmp
 
 for bin in ${BINS[*]}; do
