@@ -17,9 +17,16 @@ extern "C" {
 
 #define DIE_IF_CL(err_code, str) do { if (err != CL_SUCCESS) {fprintf(stderr,"%d: %s\n", err_code, str); exit(1); } } while (0)
 
+typedef struct {
+    cl_mem r;
+    cl_mem g;
+    cl_mem b;
+} image_channels;
+
 char *load_kernel_source(const char *filename);
 void print_platform_info(cl_platform_id platform_id);
 void print_device_info(cl_device_id device_id);
+
 
 int main(int argc, char **argv) {
     /*
@@ -48,8 +55,16 @@ int main(int argc, char **argv) {
     }
 
 
-    const size_t size_of_all_pixels = (image->width)*(image->height)*sizeof(pixel);
+    const size_t size_of_channel = (image->width)*(image->height)*sizeof(unsigned char);
     const size_t size_of_filter = filterDims[filterIndex]*filterDims[filterIndex]*sizeof(int);
+
+    bmpImageChannel *image_channel_r = newBmpImageChannel(image->width, image->height);
+    bmpImageChannel *image_channel_g = newBmpImageChannel(image->width, image->height);
+    bmpImageChannel *image_channel_b = newBmpImageChannel(image->width, image->height);
+
+    extractImageChannel(image_channel_r, image, extractRed);
+    extractImageChannel(image_channel_g, image, extractGreen);
+    extractImageChannel(image_channel_b, image, extractBlue);
 
     // OpenCL source can be placed in the source code as text strings or read from another file.
     char *source_str = load_kernel_source("src/opencl/kernel.cl");
@@ -66,8 +81,9 @@ int main(int argc, char **argv) {
     cl_kernel         kernel1;
     cl_kernel         kernel2;
 
-    cl_mem  d_image_data1;
-    cl_mem  d_image_data2;
+    image_channels d_out;
+    image_channels d_in;
+
     cl_mem  d_filter_buf;
 
     cl_int err;
@@ -115,10 +131,14 @@ int main(int argc, char **argv) {
 
 
     // Allocate the buffer memory objects aka device side buffers
-    d_image_data1  = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, size_of_all_pixels, (void*)image->rawdata, &err);
+    d_in.r  = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, size_of_channel, (void*)image_channel_r->rawdata, &err);
+    d_in.g  = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, size_of_channel, (void*)image_channel_g->rawdata, &err);
+    d_in.b  = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, size_of_channel, (void*)image_channel_b->rawdata, &err);
     DIE_IF_CL(err, "Could not create in buffer.");
 
-    d_image_data2 = clCreateBuffer(context, CL_MEM_READ_WRITE, size_of_all_pixels, NULL, &err);
+    d_out.r = clCreateBuffer(context, CL_MEM_READ_WRITE, size_of_channel, NULL, &err);
+    d_out.g = clCreateBuffer(context, CL_MEM_READ_WRITE, size_of_channel, NULL, &err);
+    d_out.b = clCreateBuffer(context, CL_MEM_READ_WRITE, size_of_channel, NULL, &err);
     DIE_IF_CL(err, "Could not create out buffer.");
 
     d_filter_buf = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, size_of_filter, (void*)filters[filterIndex], &err);
@@ -136,23 +156,32 @@ int main(int argc, char **argv) {
 
 
     // Set the args
-    err =  clSetKernelArg(kernel1, 0, sizeof(cl_mem),       &d_image_data2); // output of kernel1
-    err |= clSetKernelArg(kernel1, 1, sizeof(cl_mem),       &d_image_data1); // input  of kernel1
-    err |= clSetKernelArg(kernel1, 2, sizeof(cl_mem),       &d_filter_buf);
-    err |= clSetKernelArg(kernel1, 3, sizeof(unsigned int), &image->width);
-    err |= clSetKernelArg(kernel1, 4, sizeof(unsigned int), &image->height);
-    err |= clSetKernelArg(kernel1, 5, sizeof(unsigned int), &filterDims[filterIndex]);
-    err |= clSetKernelArg(kernel1, 6, sizeof(float),        &filterFactors[filterIndex]);
+    err  = clSetKernelArg(kernel1, 0,   sizeof(cl_mem),         &d_in.r);
+    err |= clSetKernelArg(kernel1, 1,   sizeof(cl_mem),         &d_out.r);
+    err |= clSetKernelArg(kernel1, 2,   sizeof(cl_mem),         &d_in.g);
+    err |= clSetKernelArg(kernel1, 3,   sizeof(cl_mem),         &d_out.g);
+    err |= clSetKernelArg(kernel1, 4,   sizeof(cl_mem),         &d_in.b);
+    err |= clSetKernelArg(kernel1, 5,   sizeof(cl_mem),         &d_out.b);
+    err |= clSetKernelArg(kernel1, 6,   sizeof(cl_mem),         &d_filter_buf);
+    err |= clSetKernelArg(kernel1, 7,   sizeof(unsigned int),   &image->width);
+    err |= clSetKernelArg(kernel1, 8,   sizeof(unsigned int),   &image->height);
+    err |= clSetKernelArg(kernel1, 9,   sizeof(unsigned int),   &filterDims[filterIndex]);
+    err |= clSetKernelArg(kernel1, 10,  sizeof(float),          &filterFactors[filterIndex]);
     DIE_IF_CL(err, "Failed to set kernel argument.");
 
-    err =  clSetKernelArg(kernel2, 0, sizeof(cl_mem),       &d_image_data1); // output of kernel2
-    err |= clSetKernelArg(kernel2, 1, sizeof(cl_mem),       &d_image_data2); // input  of kernel2
-    err |= clSetKernelArg(kernel2, 2, sizeof(cl_mem),       &d_filter_buf);
-    err |= clSetKernelArg(kernel2, 3, sizeof(unsigned int), &image->width);
-    err |= clSetKernelArg(kernel2, 4, sizeof(unsigned int), &image->height);
-    err |= clSetKernelArg(kernel2, 5, sizeof(unsigned int), &filterDims[filterIndex]);
-    err |= clSetKernelArg(kernel2, 6, sizeof(float),        &filterFactors[filterIndex]);
+    err  = clSetKernelArg(kernel2, 0,   sizeof(cl_mem),         &d_out.r);
+    err |= clSetKernelArg(kernel2, 1,   sizeof(cl_mem),         &d_in.r);
+    err |= clSetKernelArg(kernel2, 2,   sizeof(cl_mem),         &d_out.g);
+    err |= clSetKernelArg(kernel2, 3,   sizeof(cl_mem),         &d_in.g);
+    err |= clSetKernelArg(kernel2, 4,   sizeof(cl_mem),         &d_out.b);
+    err |= clSetKernelArg(kernel2, 5,   sizeof(cl_mem),         &d_in.b);
+    err |= clSetKernelArg(kernel2, 6,   sizeof(cl_mem),         &d_filter_buf);
+    err |= clSetKernelArg(kernel2, 7,   sizeof(unsigned int),   &image->width);
+    err |= clSetKernelArg(kernel2, 8,   sizeof(unsigned int),   &image->height);
+    err |= clSetKernelArg(kernel2, 9,   sizeof(unsigned int),   &filterDims[filterIndex]);
+    err |= clSetKernelArg(kernel2, 10,  sizeof(float),          &filterFactors[filterIndex]);
     DIE_IF_CL(err, "Failed to set kernel argument.");
+
 
     // Create N-D range object with work-item dimensions and execute kernel
     // Round up the image width and height to the nearest multiple of BLOCK_X
@@ -171,21 +200,28 @@ int main(int argc, char **argv) {
         err = clEnqueueNDRangeKernel(queue, i % 2 == 0 ? kernel1 : kernel2, 2, NULL, global_work_size, local_work_size, 0, NULL, NULL);
         DIE_IF_CL(err, "Failed to run kernel.");
     }
-
     clFinish(queue);
-
-    // Copy back from the device-side array
-    cl_mem d_image_data_out = iterations % 2 == 0 ? d_image_data1 : d_image_data2;
-    err = clEnqueueReadBuffer(queue, d_image_data_out, CL_TRUE, 0, size_of_all_pixels, image->rawdata, 0, NULL, NULL);
-    DIE_IF_CL(err, "Failed to copy back to device.");
-
-    clFinish(queue);
-
-
     // Stop the timer; calculate and print the elapsed time
     clock_gettime(CLOCK_MONOTONIC, &end_time);
     float spentTime = ((end_time.tv_sec - start_time.tv_sec)) + ((end_time.tv_nsec - start_time.tv_nsec)) * 1e-9;
     log_execution(filterNames[filterIndex], image->width, image->height, iterations, spentTime);
+
+    // Copy back from the device-side array: Channel red
+    image_channels *d_image_channels = iterations % 2 == 0 ? &d_in : &d_out;
+    err  = clEnqueueReadBuffer(queue, d_image_channels->r, CL_TRUE, 0, size_of_channel, image_channel_r->rawdata, 0, NULL, NULL);
+    err |= clEnqueueReadBuffer(queue, d_image_channels->g, CL_TRUE, 0, size_of_channel, image_channel_g->rawdata, 0, NULL, NULL);
+    err |= clEnqueueReadBuffer(queue, d_image_channels->b, CL_TRUE, 0, size_of_channel, image_channel_b->rawdata, 0, NULL, NULL);
+    DIE_IF_CL(err, "Failed to copy back to device.");
+
+    clFinish(queue);
+
+    for (int i = 0; i < image->height; i++)
+        for (int j = 0; j < image->width; j++) {
+            image->data[i][j].b = image_channel_b->data[i][j];
+            image->data[i][j].g = image_channel_g->data[i][j];
+            image->data[i][j].r = image_channel_r->data[i][j];
+        }
+
 
     //Write the image back to disk
     if (saveBmpImage(image, output) != 0) {
@@ -196,8 +232,12 @@ int main(int argc, char **argv) {
 
     clReleaseKernel(kernel1);
     clReleaseKernel(kernel2);
-    clReleaseMemObject(d_image_data1);
-    clReleaseMemObject(d_image_data2);
+    clReleaseMemObject(d_in.r);
+    clReleaseMemObject(d_out.r);
+    clReleaseMemObject(d_in.g);
+    clReleaseMemObject(d_out.g);
+    clReleaseMemObject(d_in.b);
+    clReleaseMemObject(d_out.b);
     clReleaseMemObject(d_filter_buf);
     clReleaseCommandQueue(queue);
     clReleaseProgram(program);
