@@ -113,11 +113,7 @@ int main(int argc, char **argv) {
     free(source_str);
 
     // Build the compute program executable
-#ifdef SHARED_MEM
-    err = clBuildProgram(program, 0, NULL, "-DSHARED_MEM", NULL, NULL);
-#else
     err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
-#endif
     if (err == CL_BUILD_PROGRAM_FAILURE) {
         size_t log_size;
         char *log;
