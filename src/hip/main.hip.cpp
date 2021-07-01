@@ -43,9 +43,9 @@ void applyFilter(image_channels in, image_channels out,
 
     unsigned int const filterCenter = (filterDim / 2);
     int ar = 0, ag = 0, ab = 0;
-    for (unsigned int ky = 0; ky < filterDim; ky++) {
+    for (int ky = 0; ky < filterDim; ky++) {
         int nky = filterDim - 1 - ky;
-        for (unsigned int kx = 0; kx < filterDim; kx++) {
+        for (int kx = 0; kx < filterDim; kx++) {
             int nkx = filterDim - 1 - kx;
 
             int yy = y + (ky - filterCenter);
@@ -104,17 +104,8 @@ int main(int argc, char **argv) {
     }
 
 
-    // Here we do the actual computation!
-    // image->data is a 2-dimensional array of pixel which is accessed row first ([y][x])
-    // each pixel is a struct of 3 unsigned char for the red, blue and green colour channel
-    bmpImage *processImage = newBmpImage(image->width, image->height);
-
     const size_t size_of_channel = (image->width)*(image->height)*sizeof(unsigned char);
     const size_t size_of_filter = filterDims[filterIndex]*filterDims[filterIndex]*sizeof(int);
-
-    // Allocate and copy over to device-side arrays
-    // pixel *d_image_rawdata;
-    // pixel *d_process_image_rawdata;
 
     bmpImageChannel *image_channel_r = newBmpImageChannel(image->width, image->height);
     bmpImageChannel *image_channel_g = newBmpImageChannel(image->width, image->height);
@@ -213,6 +204,10 @@ int main(int argc, char **argv) {
             image->data[i][j].g = image_channel_g->data[i][j];
             image->data[i][j].r = image_channel_r->data[i][j];
         }
+
+    freeBmpImageChannel(image_channel_r);
+    freeBmpImageChannel(image_channel_g);
+    freeBmpImageChannel(image_channel_b);
 
     //Write the image back to disk
     if (saveBmpImage(image, output) != 0) {

@@ -10,6 +10,9 @@ extern "C" {
 #include "../../lib/shared.h"
 }
 
+#define BLOCK_X 32
+#define BLOCK_Y 32
+
 #define cudaErrorCheck(ans) { gpuAssert((ans), __FILE__, __LINE__);  }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
 {
@@ -21,90 +24,22 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
     }
 }
 
-#define BLOCK_X 32
-#define BLOCK_Y 32
-
+typedef struct {
+    unsigned char *r;
+    unsigned char *g;
+    unsigned char *b;
+} image_channels;
 
 __constant__ __device__ int d_filter[25];
 // Apply convolutional filter on image data
 __global__
-void applyFilter(pixel *out, pixel *in, unsigned int width, unsigned int height, unsigned int filterDim, float filterFactor) {
-    unsigned int global_x = threadIdx.x + blockIdx.x*blockDim.x;
-    unsigned int global_y = threadIdx.y + blockIdx.y*blockDim.y;
+void applyFilter(image_channels in, image_channels out,
+                 unsigned int width, unsigned int height, unsigned int filterDim, float filterFactor)
+{
+    unsigned int x = threadIdx.x + blockIdx.x*blockDim.x;
+    unsigned int y = threadIdx.y + blockIdx.y*blockDim.y;
 
-    if (global_x >= width || global_y >= height)  return;
-
-
-#ifdef SHARED_MEM
-    const int padding = (filterDim-1)/2;
-
-
-    // All pixels needed for this block, including the halo.
-    __shared__ pixel shared_in[BLOCK_X+4][BLOCK_Y+4];
-
-    const bool P_W = threadIdx.x == 0             && blockIdx.x > 0;
-    const bool P_N = threadIdx.y == 0             && blockIdx.y > 0;
-    const bool P_E = threadIdx.x == blockDim.x -1 && blockIdx.x < gridDim.x -1;
-    const bool P_S = threadIdx.y == blockDim.y -1 && blockIdx.y < gridDim.y -1;
-
-    unsigned int x = threadIdx.x + padding;
-    unsigned int y = threadIdx.y + padding;
-
-    // Fill in the halo. Each thread fill in the pixel it's index points to. If
-    // it is a border thread, it also has to load the `padding` amount of
-    // pixels in its border direction. Corner threads have to fill in pixels
-    // in both border directions, as well as the diagonal.
-    //
-    // Non-corner threads only have to copy `padding+1` number of pixels,
-    // and the corner threads have to copy `padding+1`^2. With the filters used
-    // in this program, this maxes out at 3 pixels for the non-corner threads,
-    // and 9 for the corner threads.
-
-    shared_in[y][x] = in[global_y*width + global_x];
-    for (int i = 1; i < padding+1; i++) {
-        if (P_W) shared_in[y][x-i] = in[global_y*width     + global_x - i];
-        if (P_E) shared_in[y][x+i] = in[global_y*width     + global_x + i];
-        if (P_N) shared_in[y-i][x] = in[(global_y-i)*width + global_x];
-        if (P_S) shared_in[y+i][x] = in[(global_y+i)*width + global_x];
-
-        /* north west */
-        if (P_N && P_W){
-            shared_in[y-i][x-i] = in[(global_y-i)*width + global_x - i];
-            for (int j = 1; j < i; j++) {
-                shared_in[y-i][x-i+j] = in[(global_y-i)*width + global_x - i+j];
-                shared_in[y-i+j][x-i] = in[(global_y-i+j)*width + global_x - i];
-            }
-        }
-        /* south west */
-        if (P_S && P_W)  {
-            shared_in[y+i][x-i] = in[(global_y+i)*width + global_x - i];
-            for (int j = 1; j < i; j++) {
-                shared_in[y+i][x-i+j] = in[(global_y+i)*width + global_x - i+j];
-                shared_in[y+i-j][x-i] = in[(global_y+i-j)*width + global_x - i];
-            }
-        }
-        /* north east */
-        if (P_N && P_E) {
-            shared_in[y-i][x+i] = in[(global_y-i)*width + global_x + i];
-            for (int j = 1; j < i; j++) {
-                shared_in[y-i][x+i-j] = in[(global_y-i)*width + global_x + i-j];
-                shared_in[y-i+j][x+i] = in[(global_y-i+j)*width + global_x + i];
-            }
-        }
-        /* south east*/
-        if (P_S && P_E) {
-            shared_in[y+i][x+i] = in[(global_y+i)*width + global_x + i];
-            for (int j = 1; j < i; j++) {
-                shared_in[y+i][x+i-j] = in[(global_y+i)*width + global_x + i-j];
-                shared_in[y+i-j][x+i] = in[(global_y+i-j)*width + global_x + i];
-            }
-        }
-    }
-    __syncthreads();
-#else
-    unsigned int x = global_x;
-    unsigned int y = global_y;
-#endif
+    if (x >= width || y >= height)  return;
 
     unsigned int const filterCenter = (filterDim / 2);
     int ar = 0, ag = 0, ab = 0;
@@ -115,18 +50,10 @@ void applyFilter(pixel *out, pixel *in, unsigned int width, unsigned int height,
 
             int yy = y + (ky - filterCenter);
             int xx = x + (kx - filterCenter);
-            int global_yy = global_y + (ky - filterCenter);
-            int global_xx = global_x + (kx - filterCenter);
-            if (global_xx >= 0 && global_xx < (int) width && global_yy >=0 && global_yy < (int) height) {
-#ifdef SHARED_MEM
-                ar += shared_in[yy][xx].r * d_filter[nky * filterDim + nkx];
-                ag += shared_in[yy][xx].g * d_filter[nky * filterDim + nkx];
-                ab += shared_in[yy][xx].b * d_filter[nky * filterDim + nkx];
-#else
-                ar += in[yy*width+xx].r * d_filter[nky * filterDim + nkx];
-                ag += in[yy*width+xx].g * d_filter[nky * filterDim + nkx];
-                ab += in[yy*width+xx].b * d_filter[nky * filterDim + nkx];
-#endif
+            if (xx >= 0 && xx < (int) width && yy >=0 && yy < (int) height) {
+                ar += in.r[yy*width+xx] * d_filter[nky * filterDim + nkx];
+                ag += in.g[yy*width+xx] * d_filter[nky * filterDim + nkx];
+                ab += in.b[yy*width+xx] * d_filter[nky * filterDim + nkx];
             }
         }
     }
@@ -138,10 +65,18 @@ void applyFilter(pixel *out, pixel *in, unsigned int width, unsigned int height,
     ag = (ag < 0) ? 0 : ag;
     ab = (ab < 0) ? 0 : ab;
 
-    out[global_y*width + global_x].r = (ar > 255) ? 255 : ar;
-    out[global_y*width + global_x].g = (ag > 255) ? 255 : ag;
-    out[global_y*width + global_x].b = (ab > 255) ? 255 : ab;
+    out.r[y*width + x] = (ar > 255) ? 255 : ar;
+    out.g[y*width + x] = (ag > 255) ? 255 : ag;
+    out.b[y*width + x] = (ab > 255) ? 255 : ab;
 }
+
+void swap_image_channels(unsigned char **in, unsigned char **out)
+{
+    unsigned char *tmp = *in;
+    *in = *out;
+    *out = tmp;
+}
+
 int main(int argc, char **argv) {
     /*
        Parameter parsing, don't change this!
@@ -169,25 +104,34 @@ int main(int argc, char **argv) {
     }
 
 
-    // Here we do the actual computation!
-    // image->data is a 2-dimensional array of pixel which is accessed row first ([y][x])
-    // each pixel is a struct of 3 unsigned char for the red, blue and green colour channel
-    bmpImage *processImage = newBmpImage(image->width, image->height);
-
-    const size_t size_of_all_pixels = (image->width)*(image->height)*sizeof(pixel);
+    const size_t size_of_channel = (image->width)*(image->height)*sizeof(unsigned char);
     const size_t size_of_filter = filterDims[filterIndex]*filterDims[filterIndex]*sizeof(int);
 
-    // Allocate and copy over to device-side arrays
-    pixel *d_image_rawdata;
-    pixel *d_process_image_rawdata;
+    bmpImageChannel *image_channel_r = newBmpImageChannel(image->width, image->height);
+    bmpImageChannel *image_channel_g = newBmpImageChannel(image->width, image->height);
+    bmpImageChannel *image_channel_b = newBmpImageChannel(image->width, image->height);
+
+    extractImageChannel(image_channel_r, image, extractRed);
+    extractImageChannel(image_channel_g, image, extractGreen);
+    extractImageChannel(image_channel_b, image, extractBlue);
+
+    image_channels d_in, d_out;
 
     // Allocate space for both device copies of the image, as well as for the filter.
-    cudaMalloc((void **)&d_process_image_rawdata, size_of_all_pixels);
-    cudaMalloc((void **)&d_image_rawdata,         size_of_all_pixels);
+    cudaMalloc((void **)&d_in.r,  size_of_channel);
+    cudaMalloc((void **)&d_out.r, size_of_channel);
+
+    cudaMalloc((void **)&d_in.b,  size_of_channel);
+    cudaMalloc((void **)&d_out.b, size_of_channel);
+
+    cudaMalloc((void **)&d_in.g,  size_of_channel);
+    cudaMalloc((void **)&d_out.g, size_of_channel);
 
     // Set the device side arrays.
-    cudaMemset(d_process_image_rawdata, 0, size_of_all_pixels);
-    cudaMemcpy(d_image_rawdata, image->rawdata, size_of_all_pixels, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_in.r, image_channel_r->rawdata, size_of_channel, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_in.g, image_channel_g->rawdata, size_of_channel, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_in.b, image_channel_b->rawdata, size_of_channel, cudaMemcpyHostToDevice);
+
     cudaMemcpyToSymbol(d_filter, filters[filterIndex], size_of_filter);
 
     // We want one thread per pixel. Set the block size, and based on that set
@@ -197,37 +141,38 @@ int main(int argc, char **argv) {
     dim3 grid_size((image->width  + block_size.x - 1) / block_size.x,
                    (image->height + block_size.y - 1) / block_size.y);
 
-#if 0
-    printf("Block size: %dx%d\n", block_size.x, block_size.y);
-    printf("Grid size:  %dx%d\n", grid_size.x, grid_size.y);
-    printf("# threads:  %d\n", block_size.x*grid_size.x*block_size.y*grid_size.y);
-    printf("# pixels:   %d\n", image->width*image->height);
-#endif
 
     // Start time measurement
     struct timespec start_time, end_time;
     clock_gettime(CLOCK_MONOTONIC, &start_time);
 
     for (unsigned int i = 0; i < iterations; i++) {
-        applyFilter<<<grid_size, block_size>>>(d_process_image_rawdata,
-                                               d_image_rawdata,
+        applyFilter<<<grid_size, block_size>>>(d_in, d_out,
                                                image->width, image->height,
                                                filterDims[filterIndex],
                                                filterFactors[filterIndex]);
         // Swap the image and process_image
-        swapImageRawdata(&d_image_rawdata, &d_process_image_rawdata);
+        swap_image_channels(&d_in.r, &d_out.r);
+        swap_image_channels(&d_in.g, &d_out.g);
+        swap_image_channels(&d_in.b, &d_out.b);
     }
-    // Copy back from the device-side array
-    cudaMemcpy(image->rawdata, d_image_rawdata, size_of_all_pixels, cudaMemcpyDeviceToHost);
+    cudaDeviceSynchronize();
+    // Stop the timer; calculate and print the elapsed time
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+    float spentTime = ((end_time.tv_sec - start_time.tv_sec)) + ((end_time.tv_nsec - start_time.tv_nsec)) * 1e-9;
+    log_execution(filterNames[filterIndex], image->width, image->height, iterations, spentTime);
 
     // Check for error
     cudaError_t error = cudaGetLastError();
     cudaErrorCheck(error);
 
-    // Stop the timer; calculate and print the elapsed time
-    clock_gettime(CLOCK_MONOTONIC, &end_time);
-    float spentTime = ((end_time.tv_sec - start_time.tv_sec)) + ((end_time.tv_nsec - start_time.tv_nsec)) * 1e-9;
-    log_execution(filterNames[filterIndex], image->width, image->height, iterations, spentTime);
+    // Copy back from the device-side array
+    cudaMemcpy(image_channel_r->rawdata, d_in.r, size_of_channel, cudaMemcpyDeviceToHost);
+    cudaMemcpy(image_channel_g->rawdata, d_in.g, size_of_channel, cudaMemcpyDeviceToHost);
+    cudaMemcpy(image_channel_b->rawdata, d_in.b, size_of_channel, cudaMemcpyDeviceToHost);
+
+
+#ifdef VERBOSE
     // calculate theoretical occupancy
     int max_active_blocks;
     int block_size_1d = block_size.x*block_size.y;
@@ -236,20 +181,36 @@ int main(int argc, char **argv) {
                                                   block_size_1d,
                                                   0);
 
-#if 0
     int device;
-    cudaDeviceProp props;
+    cudaDeviceProp_t props;
     cudaGetDevice(&device);
     cudaGetDeviceProperties(&props, device);
     float occupancy = (max_active_blocks * block_size_1d / props.warpSize) /
                       (float)(props.maxThreadsPerMultiProcessor / props.warpSize);
 
+    printf("Max active blocks: %d\n", max_active_blocks);
+    printf("Max threads per multiprocessor: %d\n", props.maxThreadsPerMultiProcessor);
     printf("Launched blocks of size %d. Theoretical occupancy: %f\n", block_size.x*block_size.y, occupancy);
 #endif
 
-    cudaFree(d_image_rawdata);
-    cudaFree(d_process_image_rawdata);
-    freeBmpImage(processImage);
+    cudaFree(d_in.r);
+    cudaFree(d_out.r);
+    cudaFree(d_in.g);
+    cudaFree(d_out.g);
+    cudaFree(d_in.b);
+    cudaFree(d_out.b);
+
+    for (int i = 0; i < image->height; i++)
+        for (int j = 0; j < image->width; j++) {
+            image->data[i][j].b = image_channel_b->data[i][j];
+            image->data[i][j].g = image_channel_g->data[i][j];
+            image->data[i][j].r = image_channel_r->data[i][j];
+        }
+
+    freeBmpImageChannel(image_channel_r);
+    freeBmpImageChannel(image_channel_g);
+    freeBmpImageChannel(image_channel_b);
+
     //Write the image back to disk
     if (saveBmpImage(image, output) != 0) {
         fprintf(stderr, "Could not save output to '%s'!\n", output);
