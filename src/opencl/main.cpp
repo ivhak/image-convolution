@@ -28,21 +28,16 @@ char *load_kernel_source(const char *filename);
 void print_platform_info(cl_platform_id platform_id);
 void print_device_info(cl_device_id device_id);
 
-
 int main(int argc, char **argv) {
-    /*
-       Parameter parsing, don't change this!
-       */
     unsigned int iterations = 1;
     char *output = NULL;
     char *input = NULL;
     unsigned int filter_index = 2;
 
+    // Parse command line arguments; number of iterations, kernel to use, input file, output file
     parse_args(argc, argv, &iterations, &filter_index, &output, &input);
 
-    /*
-       Create the BMP image and load it from disk.
-       */
+    // Load the image from disk
     image_t *image = new_image(0,0);
     if (image == NULL) {
         fprintf(stderr, "Could not allocate new image!\n");
@@ -54,7 +49,6 @@ int main(int argc, char **argv) {
         free_image(image);
         error_exit(&input,&output);
     }
-
 
     const size_t size_of_channel = (image->width)*(image->height)*sizeof(unsigned char);
     const size_t size_of_filter = filter_dimensions[filter_index]*filter_dimensions[filter_index]*sizeof(int);
@@ -198,7 +192,7 @@ int main(int argc, char **argv) {
     float execution_time = time_spent(start_time, end_time);
     log_execution(filter_names[filter_index], image->width, image->height, iterations, execution_time);
 
-    // Copy back from the device-side array: Channel red
+    // Copy back from the device-side array
     d_image_channels *d_image_channels_out = iterations % 2 == 0 ? &d_in : &d_out;
     err  = clEnqueueReadBuffer(queue, d_image_channels_out->r, CL_TRUE, 0, size_of_channel, image_soa->r, 0, NULL, NULL);
     err |= clEnqueueReadBuffer(queue, d_image_channels_out->g, CL_TRUE, 0, size_of_channel, image_soa->g, 0, NULL, NULL);
@@ -208,9 +202,11 @@ int main(int argc, char **argv) {
     clFinish(queue);
 
 
+    // Copy the image back to AOS form so that it is easily written to disk
     imageSOA_to_image (image_soa, image);
     free_imageSOA(image_soa);
-    //Write the image back to disk
+
+    // Write the image back to disk
     if (save_image(image, output) != 0) {
         fprintf(stderr, "Could not save output to '%s'!\n", output);
         free_image(image);

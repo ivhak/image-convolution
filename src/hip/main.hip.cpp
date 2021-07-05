@@ -31,30 +31,34 @@ typedef struct {
 } d_image_channels;
 
 
+// Store the filter to be used in device memory so that it does not have to be
+// read in each iteration
 __constant__ __device__ int d_filter[25];
+
 // Apply convolutional filter on image data
-__global__
-void apply_filter(d_image_channels in, d_image_channels out,
-                 unsigned int width, unsigned int height, unsigned int filterDim, float filter_factor)
+__global__ void
+apply_filter(d_image_channels in, d_image_channels out,
+             unsigned int width, unsigned int height,
+             unsigned int filter_dim, float filter_factor)
 {
     unsigned int x = threadIdx.x + blockIdx.x*blockDim.x;
     unsigned int y = threadIdx.y + blockIdx.y*blockDim.y;
 
     if (x >= width || y >= height)  return;
 
-    unsigned int const filterCenter = (filterDim / 2);
+    unsigned int const filter_center = (filter_dim / 2);
     int ar = 0, ag = 0, ab = 0;
-    for (int ky = 0; ky < filterDim; ky++) {
-        int nky = filterDim - 1 - ky;
-        for (int kx = 0; kx < filterDim; kx++) {
-            int nkx = filterDim - 1 - kx;
+    for (int ky = 0; ky < filter_dim; ky++) {
+        int nky = filter_dim - 1 - ky;
+        for (int kx = 0; kx < filter_dim; kx++) {
+            int nkx = filter_dim - 1 - kx;
 
-            int yy = y + (ky - filterCenter);
-            int xx = x + (kx - filterCenter);
+            int yy = y + (ky - filter_center);
+            int xx = x + (kx - filter_center);
             if (xx >= 0 && xx < (int) width && yy >=0 && yy < (int) height) {
-                ar += in.r[yy*width+xx] * d_filter[nky * filterDim + nkx];
-                ag += in.g[yy*width+xx] * d_filter[nky * filterDim + nkx];
-                ab += in.b[yy*width+xx] * d_filter[nky * filterDim + nkx];
+                ar += in.r[yy*width+xx] * d_filter[nky * filter_dim + nkx];
+                ag += in.g[yy*width+xx] * d_filter[nky * filter_dim + nkx];
+                ab += in.b[yy*width+xx] * d_filter[nky * filter_dim + nkx];
             }
         }
     }
@@ -72,9 +76,8 @@ void apply_filter(d_image_channels in, d_image_channels out,
 }
 
 int main(int argc, char **argv) {
-    /*
-       Parameter parsing, don't change this!
-     */
+
+    // Parse command line arguments; number of iterations, kernel to use, input file, output file
     unsigned int iterations = 1;
     char *output = NULL;
     char *input = NULL;
@@ -82,9 +85,7 @@ int main(int argc, char **argv) {
 
     parse_args(argc, argv, &iterations, &filter_index, &output, &input);
 
-    /*
-       Create the BMP image and load it from disk.
-     */
+    // Load the image from disk
     image_t *image = new_image(0,0);
     if (image == NULL) {
         fprintf(stderr, "Could not allocate new image!\n");
@@ -97,10 +98,11 @@ int main(int argc, char **argv) {
         error_exit(&input,&output);
     }
 
-
     const size_t size_of_channel = (image->width)*(image->height)*sizeof(unsigned char);
     const size_t size_of_filter = filter_dimensions[filter_index]*filter_dimensions[filter_index]*sizeof(int);
 
+    // Convert the image for AOS ([r g b r g b r g b ...r g b ]) to SOA ([r r r ... r g g g ... g b b b ... b])
+    // so that data is better coalesced when being processed on the GPU
     imageSOA_t *image_soa = new_imageSOA(image->width, image->height);
     image_to_imageSOA(image, image_soa);
 
@@ -121,6 +123,7 @@ int main(int argc, char **argv) {
     HIP_CHECK(hipMemcpy(d_in.g, image_soa->g, size_of_channel, hipMemcpyHostToDevice));
     HIP_CHECK(hipMemcpy(d_in.b, image_soa->b, size_of_channel, hipMemcpyHostToDevice));
 
+    // Copy over the filter to device memory.
     HIP_CHECK(hipMemcpyToSymbol(HIP_SYMBOL(d_filter), filters[filter_index], size_of_filter));
 
     // We want one thread per pixel. Set the block size, and based on that set
@@ -140,19 +143,23 @@ int main(int argc, char **argv) {
                            image->width, image->height,
                            filter_dimensions[filter_index], filter_factors[filter_index]);
         HIP_CHECK(hipGetLastError());
-        // Swap the image and process_image
+
+        // Swap the input/output buffers
         swap_image_channels(&d_in.r, &d_out.r);
         swap_image_channels(&d_in.g, &d_out.g);
         swap_image_channels(&d_in.b, &d_out.b);
     }
     hipDeviceSynchronize();
+
     // Stop the timer; calculate and print the elapsed time
     clock_gettime(CLOCK_MONOTONIC, &end_time);
     float execution_time = time_spent(start_time, end_time);
     log_execution(filter_names[filter_index], image->width, image->height, iterations, execution_time);
 
     // Copy back from the device-side array
-    // HIP_CHECK(hipMemcpy(image->rawdata, d_image_rawdata, size_of_all_pixels, hipMemcpyDeviceToHost));
+    //
+    // NOTE: d_in is actually holding the output, as the buffers were swapped
+    // after the last iteration:
     HIP_CHECK(hipMemcpy(image_soa->r, d_in.r, size_of_channel, hipMemcpyDeviceToHost));
     HIP_CHECK(hipMemcpy(image_soa->g, d_in.g, size_of_channel, hipMemcpyDeviceToHost));
     HIP_CHECK(hipMemcpy(image_soa->b, d_in.b, size_of_channel, hipMemcpyDeviceToHost));
@@ -160,7 +167,7 @@ int main(int argc, char **argv) {
 
 
 #ifdef VERBOSE
-    // calculate theoretical occupancy
+    // Calculate theoretical occupancy
     int max_active_blocks;
     int block_size_1d = block_size.x*block_size.y;
     hipOccupancyMaxActiveBlocksPerMultiprocessor(&max_active_blocks,
@@ -187,10 +194,11 @@ int main(int argc, char **argv) {
     hipFree(d_out.g);
     hipFree(d_out.b);
 
+    // Copy the image back to AOS form so that it is easily written to disk
     imageSOA_to_image(image_soa, image);
-
     free_imageSOA(image_soa);
-    //Write the image back to disk
+
+    // Write the image back to disk
     if (save_image(image, output) != 0) {
         fprintf(stderr, "Could not save output to '%s'!\n", output);
         free_image(image);

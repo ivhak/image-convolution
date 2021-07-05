@@ -1,6 +1,9 @@
 #ifndef BITMAP_H
 #define BITMAP_H
 
+// NOTE: The struct members are in the "wrong" order as  bitmap images are
+// stored "backwards" of what one might assume, i.e., the first pixel after the
+// header in a bitmap file is in bottom right corner, rather than the top left.
 typedef struct {
     unsigned char b;
     unsigned char g;

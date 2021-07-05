@@ -31,7 +31,10 @@ typedef struct {
     unsigned char *b;
 } d_image_channels;
 
+// Store the filter to be used in device memory so that it does not have to be
+// read in each iteration
 __constant__ __device__ int d_filter[25];
+
 // Apply convolutional filter on image data
 __global__
 void apply_filter(d_image_channels in, d_image_channels out,
@@ -72,9 +75,8 @@ void apply_filter(d_image_channels in, d_image_channels out,
 }
 
 int main(int argc, char **argv) {
-    /*
-       Parameter parsing, don't change this!
-     */
+
+    // Parse command line arguments; number of iterations, kernel to use, input file, output file
     unsigned int iterations = 1;
     char *output = NULL;
     char *input = NULL;
@@ -82,9 +84,7 @@ int main(int argc, char **argv) {
 
     parse_args(argc, argv, &iterations, &filter_index, &output, &input);
 
-    /*
-       Create the BMP image and load it from disk.
-     */
+    // Load the image from disk
     image_t *image = new_image(0,0);
     if (image == NULL) {
         fprintf(stderr, "Could not allocate new image!\n");
@@ -101,6 +101,8 @@ int main(int argc, char **argv) {
     const size_t size_of_channel = (image->width)*(image->height)*sizeof(unsigned char);
     const size_t size_of_filter = filter_dimensions[filter_index]*filter_dimensions[filter_index]*sizeof(int);
 
+    // Convert the image for AOS ([r g b r g b r g b ...r g b ]) to SOA ([r r r ... r g g g ... g b b b ... b])
+    // so that data is better coalesced when being processed on the GPU
     imageSOA_t *image_soa = new_imageSOA(image->width, image->height);
     image_to_imageSOA(image, image_soa);
 
@@ -140,7 +142,7 @@ int main(int argc, char **argv) {
                                                image->width, image->height,
                                                filter_dimensions[filter_index],
                                                filter_factors[filter_index]);
-        // Swap the image and process_image
+        // Swap the input/output buffers
         swap_image_channels(&d_in.r, &d_out.r);
         swap_image_channels(&d_in.g, &d_out.g);
         swap_image_channels(&d_in.b, &d_out.b);
@@ -156,6 +158,9 @@ int main(int argc, char **argv) {
     cudaErrorCheck(error);
 
     // Copy back from the device-side array
+    //
+    // NOTE: d_in is actually holding the output, as the buffers were swapped
+    // after the last iteration:
     cudaMemcpy(image_soa->r, d_in.r, size_of_channel, cudaMemcpyDeviceToHost);
     cudaMemcpy(image_soa->g, d_in.g, size_of_channel, cudaMemcpyDeviceToHost);
     cudaMemcpy(image_soa->b, d_in.b, size_of_channel, cudaMemcpyDeviceToHost);
@@ -189,12 +194,11 @@ int main(int argc, char **argv) {
     cudaFree(d_in.b);
     cudaFree(d_out.b);
 
-
+    // Copy the image back to AOS form so that it is easily written to disk
     imageSOA_to_image(image_soa, image);
-
     free_imageSOA(image_soa);
 
-    //Write the image back to disk
+    // Write the image back to disk
     if (save_image(image, output) != 0) {
         fprintf(stderr, "Could not save output to '%s'!\n", output);
         free_image(image);
