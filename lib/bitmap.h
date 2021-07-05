@@ -29,17 +29,14 @@ int saveBmpImage(bmpImage *image, char const *filename);
 bmpImageChannel * newBmpImageChannel(unsigned int const width, unsigned int const height);
 void freeBmpImageChannel(bmpImageChannel *imageChannel);
 int extractImageChannel(bmpImageChannel *to, bmpImage *from, unsigned char extractMethod(pixel from));
-int mapImageChannel(bmpImage *to, bmpImageChannel *from, pixel extractMethod(unsigned char from));
-pixel mapRedChannel(unsigned char from);
-unsigned char extractRedChannel(pixel from);
+void map_image_channels_to_image(bmpImage *image, bmpImageChannel *red, bmpImageChannel *green, bmpImageChannel *blue);
 
-pixel mapRed(unsigned char from);
-pixel mapGreen(unsigned char from);
-pixel mapBlue(unsigned char from);
 unsigned char extractRed(pixel from);
 unsigned char extractGreen(pixel from);
 unsigned char extractBlue(pixel from);
-unsigned char extractAverage(pixel from);
-pixel mapEqual(unsigned char from);
+//
+// Helper function to swap bmpImageChannel pointers
+void swapImageRawdata(pixel **one, pixel **two);
+void swapImage(bmpImage **one, bmpImage **two);
 
 #endif

@@ -7,6 +7,7 @@
 
 #include "../../lib/bitmap.h"
 #include "../../lib/shared.h"
+#include "../../lib/filter.h"
 
 
 // Apply convolutional kernel on image data

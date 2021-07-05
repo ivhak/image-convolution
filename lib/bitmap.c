@@ -202,32 +202,6 @@ int extractImageChannel(bmpImageChannel *to, bmpImage *from, unsigned char extra
     }
     return 0;
 }
-int mapImageChannel(bmpImage *to, bmpImageChannel *from, pixel extractMethod(unsigned char from)) {
-    if (from->width > to->width || from->height > to->height)
-        return 1;
-    for (unsigned int y = 0; y < from->height; y++) {
-        for (unsigned int x = 0; x < from->width; x++) {
-            to->data[y][x] = extractMethod(from->data[y][x]);
-        }
-    }
-    return 0;
-}
-
-pixel mapRed(unsigned char from) {
-    pixel res = {};
-    res.r = from;
-    return res;
-}
-pixel mapGreen(unsigned char from) {
-    pixel res = {};
-    res.g = from;
-    return res;
-}
-pixel mapBlue(unsigned char from) {
-    pixel res = {};
-    res.b = from;
-    return res;
-}
 
 unsigned char extractRed(pixel from) {
     return from.r;
@@ -239,11 +213,17 @@ unsigned char extractBlue(pixel from) {
     return from.b;
 }
 
-unsigned char extractAverage(pixel from) {
-    return ((from.r + from.g + from.b) / 3);
-}
 
-pixel mapEqual(unsigned char from) {
-    pixel res = {from, from, from};
-    return res;
+
+void map_image_channels_to_image(bmpImage *image,
+                                 bmpImageChannel *red,
+                                 bmpImageChannel *green,
+                                 bmpImageChannel *blue)
+{
+    for (int i = 0; i < image->height; i++)
+        for (int j = 0; j < image->width; j++) {
+            image->data[i][j].b = blue->data[i][j];
+            image->data[i][j].g = green->data[i][j];
+            image->data[i][j].r = red->data[i][j];
+        }
 }

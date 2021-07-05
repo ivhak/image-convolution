@@ -1,4 +1,4 @@
-CUDA_SRC := src/hip/main.cu
+CUDA_SRC := src/cuda/main.cu
 CUDA_OUT := image_convolution_cuda
 
 HIP_SRC  := src/hip/main.hip.cpp
@@ -14,7 +14,7 @@ OPENCL_LFLAGS := -lOpenCL -L/opt/rocm-4.2.0/lib
 SERIAL_SRC  := src/serial/main.c
 SERIAL_OUT  := image_convolution_serial
 
-LIBS := lib/bitmap.c lib/shared.c
+LIBS := lib/bitmap.c lib/shared.c lib/filter.c
 LIB_OBJ := $(patsubst %.c,%.o,$(LIBS))
 
 CC      := gcc
@@ -31,9 +31,9 @@ CFLAGS := -O3
 endif
 
 # Use shared memory in the Cuda, HIP and OpenCl implementations
-ifdef SHARED_MEM
-DFLAGS += -DSHARED_MEM
-endif
+# ifdef SHARED_MEM
+# DFLAGS += -DSHARED_MEM
+# endif
 
 ifdef VERBOSE
 DFLAGS += -DVERBOSE
@@ -41,11 +41,11 @@ endif
 
 .PHONY: clean
 
-hip: $(HIP_OUT)
-cuda: $(CUDA_OUT)
+hip:    $(HIP_OUT)
+cuda:   $(CUDA_OUT)
 opencl: $(OPENCL_OUT)
 serial: $(SERIAL_OUT)
-tools: bmpdiff bmptile
+tools:  bmpdiff bmptile
 
 bmpdiff: $(LIB_OBJ) src/tools/bmpdiff.c
 	$(CC) $(CFLAGS) $^ -o $@

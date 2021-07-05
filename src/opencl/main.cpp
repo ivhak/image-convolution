@@ -9,6 +9,7 @@
 extern "C" {
 #include "../../lib/bitmap.h"
 #include "../../lib/shared.h"
+#include "../../lib/filter.h"
 }
 
 #define BLOCK_X 16
@@ -211,13 +212,7 @@ int main(int argc, char **argv) {
 
     clFinish(queue);
 
-    for (int i = 0; i < image->height; i++)
-        for (int j = 0; j < image->width; j++) {
-            image->data[i][j].b = image_channel_b->data[i][j];
-            image->data[i][j].g = image_channel_g->data[i][j];
-            image->data[i][j].r = image_channel_r->data[i][j];
-        }
-
+    map_image_channels_to_image(image, image_channel_r, image_channel_g, image_channel_b);
 
     //Write the image back to disk
     if (saveBmpImage(image, output) != 0) {
