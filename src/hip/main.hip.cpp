@@ -71,13 +71,6 @@ void applyFilter(image_channels in, image_channels out,
     out.b[y*width + x] = (ab > 255) ? 255 : ab;
 }
 
-void swap_image_channels(unsigned char **in, unsigned char **out)
-{
-    unsigned char *tmp = *in;
-    *in = *out;
-    *out = tmp;
-}
-
 int main(int argc, char **argv) {
     /*
        Parameter parsing, don't change this!
@@ -92,15 +85,15 @@ int main(int argc, char **argv) {
     /*
        Create the BMP image and load it from disk.
      */
-    bmpImage *image = newBmpImage(0,0);
+    bmp_image_t *image = new_bmp_image(0,0);
     if (image == NULL) {
         fprintf(stderr, "Could not allocate new image!\n");
         error_exit(&input,&output);
     }
 
-    if (loadBmpImage(image, input) != 0) {
+    if (load_bmp_image(image, input) != 0) {
         fprintf(stderr, "Could not load bmp image '%s'!\n", input);
-        freeBmpImage(image);
+        free_bmp_image(image);
         error_exit(&input,&output);
     }
 
@@ -108,13 +101,13 @@ int main(int argc, char **argv) {
     const size_t size_of_channel = (image->width)*(image->height)*sizeof(unsigned char);
     const size_t size_of_filter = filterDims[filterIndex]*filterDims[filterIndex]*sizeof(int);
 
-    bmpImageChannel *image_channel_r = newBmpImageChannel(image->width, image->height);
-    bmpImageChannel *image_channel_g = newBmpImageChannel(image->width, image->height);
-    bmpImageChannel *image_channel_b = newBmpImageChannel(image->width, image->height);
+    bmp_image_channel_t *image_channel_r = new_bmp_image_channel(image->width, image->height);
+    bmp_image_channel_t *image_channel_g = new_bmp_image_channel(image->width, image->height);
+    bmp_image_channel_t *image_channel_b = new_bmp_image_channel(image->width, image->height);
 
-    extractImageChannel(image_channel_r, image, extractRed);
-    extractImageChannel(image_channel_g, image, extractGreen);
-    extractImageChannel(image_channel_b, image, extractBlue);
+    extract_image_channel(image_channel_r, image, extract_red);
+    extract_image_channel(image_channel_g, image, extract_green);
+    extract_image_channel(image_channel_b, image, extract_blue);
 
     image_channels d_in, d_out;
 
@@ -201,14 +194,14 @@ int main(int argc, char **argv) {
 
     map_image_channels_to_image(image, image_channel_r, image_channel_g, image_channel_b);
 
-    freeBmpImageChannel(image_channel_r);
-    freeBmpImageChannel(image_channel_g);
-    freeBmpImageChannel(image_channel_b);
+    free_bmp_image_channel(image_channel_r);
+    free_bmp_image_channel(image_channel_g);
+    free_bmp_image_channel(image_channel_b);
 
     //Write the image back to disk
-    if (saveBmpImage(image, output) != 0) {
+    if (save_bmp_image(image, output) != 0) {
         fprintf(stderr, "Could not save output to '%s'!\n", output);
-        freeBmpImage(image);
+        free_bmp_image(image);
         error_exit(&input,&output);
     };
 

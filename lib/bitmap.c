@@ -6,7 +6,7 @@
 
 #define BMP_HEADER_SIZE 54
 
-void freeBmpData(bmpImage *image) {
+void free_bmp_data(bmp_image_t *image) {
     if (image->data != NULL) {
         free(image->data);
         image->data = NULL;
@@ -18,15 +18,15 @@ void freeBmpData(bmpImage *image) {
 }
 
 
-void freeBmpImage(bmpImage *image) {
-    freeBmpData(image);
+void free_bmp_image(bmp_image_t *image) {
+    free_bmp_data(image);
     if (image) {
         free(image);
     }
 }
 
-int reallocateBmpBuffer(bmpImage *image, unsigned int const width, unsigned int const height) {
-    freeBmpData(image);
+int reallocate_bmp_buffer(bmp_image_t *image, unsigned int const width, unsigned int const height) {
+    free_bmp_data(image);
     if (height * width > 0) {
         image->rawdata = calloc(image->height * image->width, sizeof(pixel));
         if (image->rawdata == NULL) {
@@ -34,7 +34,7 @@ int reallocateBmpBuffer(bmpImage *image, unsigned int const width, unsigned int 
         }
         image->data = malloc(image->height * sizeof(pixel *));
         if (image->data == NULL) {
-            freeBmpData(image);
+            free_bmp_data(image);
             return 1;
         }
         for (unsigned int i = 0; i < height; i++) {
@@ -45,19 +45,19 @@ int reallocateBmpBuffer(bmpImage *image, unsigned int const width, unsigned int 
 }
 
 
-bmpImage * newBmpImage(unsigned int const width, unsigned int const height) {
-    bmpImage *new = malloc(sizeof(bmpImage));
+bmp_image_t * new_bmp_image(unsigned int const width, unsigned int const height) {
+    bmp_image_t *new = malloc(sizeof(bmp_image_t));
     if (new == NULL)
         return NULL;
     new->width = width;
     new->height = height;
     new->data = NULL;
     new->rawdata = NULL;
-    reallocateBmpBuffer(new, width, height);
+    reallocate_bmp_buffer(new, width, height);
     return new;
 }
 
-void freeBmpChannelData(bmpImageChannel *image) {
+void free_bmp_image_channel_data(bmp_image_channel_t *image) {
     if (image->data != NULL) {
         free(image->data);
         image->data = NULL;
@@ -68,15 +68,15 @@ void freeBmpChannelData(bmpImageChannel *image) {
     }
 }
 
-void freeBmpImageChannel(bmpImageChannel *image) {
-    freeBmpChannelData(image);
+void free_bmp_image_channel(bmp_image_channel_t *image) {
+    free_bmp_image_channel_data(image);
     if (image) {
         free(image);
     }
 }
 
-int reallocateBmpChannelBuffer(bmpImageChannel *image, unsigned int const width, unsigned int const height) {
-    freeBmpChannelData(image);
+int reallocate_bmp_image_channel_buffer(bmp_image_channel_t *image, unsigned int const width, unsigned int const height) {
+    free_bmp_image_channel_data(image);
     if (height * width > 0) {
         image->rawdata = calloc(image->height * image->width, sizeof(unsigned char));
         if (image->rawdata == NULL) {
@@ -84,7 +84,7 @@ int reallocateBmpChannelBuffer(bmpImageChannel *image, unsigned int const width,
         }
         image->data = malloc(image->height * sizeof(unsigned char *));
         if (image->data == NULL) {
-            freeBmpChannelData(image);
+            free_bmp_image_channel_data(image);
             return 1;
         }
         for (unsigned int i = 0; i < height; i++) {
@@ -94,21 +94,21 @@ int reallocateBmpChannelBuffer(bmpImageChannel *image, unsigned int const width,
     return 0;
 }
 
-bmpImageChannel * newBmpImageChannel(unsigned int const width, unsigned int const height) {
-    bmpImageChannel *new = malloc(sizeof(bmpImageChannel));
+bmp_image_channel_t * new_bmp_image_channel(unsigned int const width, unsigned int const height) {
+    bmp_image_channel_t *new = malloc(sizeof(bmp_image_channel_t));
     if (new == NULL)
         return NULL;
     new->width = width;
     new->height = height;
     new->data = NULL;
     new->rawdata = NULL;
-    reallocateBmpChannelBuffer(new, width, height);
+    reallocate_bmp_image_channel_buffer(new, width, height);
     return new;
 }
 
 
 
-int loadBmpImage(bmpImage *image, char const *filename) {
+int load_bmp_image(bmp_image_t *image, char const *filename) {
     int ret = 1;
     FILE* fImage = fopen(filename, "rb");   //read the file
     if (!fImage) {
@@ -122,7 +122,7 @@ int loadBmpImage(bmpImage *image, char const *filename) {
     image->width = *(int *) &header[18];
     image->height = *(int *) &header[22];
 
-    reallocateBmpBuffer(image, image->width, image->height);
+    reallocate_bmp_buffer(image, image->width, image->height);
     if (image->rawdata == NULL) {
         goto failed_read;
     }
@@ -148,7 +148,7 @@ failed_file:
     return ret;
 }
 
-int saveBmpImage(bmpImage *image, char const *filename) {
+int save_bmp_image(bmp_image_t *image, char const *filename) {
     int ret = 0;
     FILE *fImage=fopen(filename,"wb");
     if(!fImage) {
@@ -192,7 +192,7 @@ int saveBmpImage(bmpImage *image, char const *filename) {
     return ret;
 }
 
-int extractImageChannel(bmpImageChannel *to, bmpImage *from, unsigned char extractMethod(pixel from)) {
+int extract_image_channel(bmp_image_channel_t *to, bmp_image_t *from, unsigned char extractMethod(pixel from)) {
     if (from->width > to->width || from->height > to->height)
         return 1;
     for (unsigned int y = 0; y < from->height; y++) {
@@ -203,22 +203,22 @@ int extractImageChannel(bmpImageChannel *to, bmpImage *from, unsigned char extra
     return 0;
 }
 
-unsigned char extractRed(pixel from) {
+unsigned char extract_red(pixel from) {
     return from.r;
 }
-unsigned char extractGreen(pixel from) {
+unsigned char extract_green(pixel from) {
     return from.g;
 }
-unsigned char extractBlue(pixel from) {
+unsigned char extract_blue(pixel from) {
     return from.b;
 }
 
 
 
-void map_image_channels_to_image(bmpImage *image,
-                                 bmpImageChannel *red,
-                                 bmpImageChannel *green,
-                                 bmpImageChannel *blue)
+void map_image_channels_to_image(bmp_image_t *image,
+                                 bmp_image_channel_t *red,
+                                 bmp_image_channel_t *green,
+                                 bmp_image_channel_t *blue)
 {
     for (int i = 0; i < image->height; i++)
         for (int j = 0; j < image->width; j++) {
@@ -226,4 +226,24 @@ void map_image_channels_to_image(bmpImage *image,
             image->data[i][j].g = green->data[i][j];
             image->data[i][j].r = red->data[i][j];
         }
+}
+
+void swap_image_channels(unsigned char **in, unsigned char **out)
+{
+    unsigned char *tmp = *in;
+    *in = *out;
+    *out = tmp;
+}
+
+// Helper function to swap bmpImageChannel pointers
+void swap_image_rawdata(pixel **one, pixel **two) {
+    pixel *helper = *two;
+    *two = *one;
+    *one = helper;
+}
+
+void swap_bmp_image(bmp_image_t **one, bmp_image_t **two) {
+    bmp_image_t *helper = *two;
+    *two = *one;
+    *one = helper;
 }

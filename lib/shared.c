@@ -24,18 +24,6 @@ void error_exit(char** input, char** output) {
     exit(1);
 }
 
-// Helper function to swap bmpImageChannel pointers
-void swapImageRawdata(pixel **one, pixel **two) {
-    pixel *helper = *two;
-    *two = *one;
-    *one = helper;
-}
-
-void swapImage(bmpImage **one, bmpImage **two) {
-    bmpImage *helper = *two;
-    *two = *one;
-    *one = helper;
-}
 
 void help(char const *exec, char const opt, char const *optarg) {
     FILE *out = stdout;
