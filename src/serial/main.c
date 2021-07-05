@@ -102,7 +102,6 @@ int main(int argc, char **argv) {
         goto error_exit;
     };
 
-graceful_exit:
     ret = 0;
 error_exit:
     if (input)

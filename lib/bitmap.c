@@ -53,24 +53,27 @@ image_t * new_image(unsigned int const width, unsigned int const height) {
     new->height = height;
     new->data = NULL;
     new->rawdata = NULL;
-    reallocate_buffer(new, width, height);
+    if (!reallocate_buffer(new, width, height))
+        return NULL;
     return new;
 }
 
 int load_image(image_t *image, char const *filename) {
     int ret = 1;
-    FILE* fimage = fopen(filename, "rb");   //read the file
-    if (!fimage) {
-        goto failed_file;
-    }
+    FILE *fimage;
 
+
+    if (!(fimage = fopen(filename, "rb")))
+        goto failed_file;
+
+    // Read in the bitmap header, retrieve the width and height of the image
     unsigned char header[BMP_HEADER_SIZE];
-    if (fread(header, sizeof(unsigned char), BMP_HEADER_SIZE, fimage) < BMP_HEADER_SIZE) {
+    if (fread(header, sizeof(unsigned char), BMP_HEADER_SIZE, fimage) < BMP_HEADER_SIZE)
         goto failed_read;
-    }
-    image->width = *(int *) &header[18];
+    image->width  = *(int *) &header[18];
     image->height = *(int *) &header[22];
 
+    // Resize the image so that it fits the bitmap image
     reallocate_buffer(image, image->width, image->height);
     if (image->rawdata == NULL) {
         goto failed_read;
@@ -80,39 +83,40 @@ int load_image(image_t *image, char const *filename) {
     while ((image->width * 3 + padding) % 4 != 0)
         padding++;
 
-    size_t lineSize = (image->width * 3);
-    size_t paddedLineSize = lineSize + padding;
-    unsigned char* data = malloc(paddedLineSize * sizeof(unsigned char));
+    size_t line_size = (image->width * 3);
+    size_t padded_line_size = line_size + padding;
 
-    for (unsigned int y=0; y < image->height; y++ ) {
-        if (fread( data, sizeof(unsigned char), paddedLineSize, fimage) < paddedLineSize) {
+    unsigned char* data = malloc(padded_line_size * sizeof(unsigned char));
+
+    for (unsigned int y = 0; y < image->height; y++ ) {
+        if (fread(data, sizeof(unsigned char), padded_line_size, fimage) < padded_line_size)
             goto failed_read;
-        }
-        memcpy(image->data[y], data, lineSize);
+        memcpy(image->data[y], data, line_size);
     }
     ret = 0;
 failed_read:
-    fclose(fimage); //close the file
+    fclose(fimage);
+    free(data);
 failed_file:
     return ret;
 }
 
 int save_image(image_t *image, char const *filename) {
     int ret = 0;
-    FILE *fimage=fopen(filename,"wb");
-    if(!fimage) {
+    FILE *fimage;
+
+    if(!(fimage=fopen(filename,"wb")))
         return 1;
-    }
 
-    char padBuffer[4] = {};
-    const size_t dataSize = image->width * image->height * sizeof(pixel);
-    size_t lineWidth = image->width * sizeof(pixel);
+    char pad_buffer[4] = {};
+    const size_t data_size = image->width * image->height * sizeof(pixel);
+    size_t line_width = image->width * sizeof(pixel);
     size_t padding = 0;
-    if (lineWidth % 4 != 0) {
-        padding = 4 - (lineWidth % 4);
+    if (line_width % 4 != 0) {
+        padding = 4 - (line_width % 4);
     }
 
-    const size_t size= dataSize + BMP_HEADER_SIZE;
+    const size_t size = data_size + BMP_HEADER_SIZE;
 
     unsigned char header[BMP_HEADER_SIZE]= {
         'B', 'M', size & 255, (size >> 8) & 255, (size >> 16) & 255, size >> 24, 0,
@@ -130,7 +134,7 @@ int save_image(image_t *image, char const *filename) {
                 break;
             }
             if (padding > 0) {
-                if (fwrite(padBuffer, sizeof(char), padding ,fimage) < padding)  {
+                if (fwrite(pad_buffer, sizeof(char), padding ,fimage) < padding)  {
                     ret = 1;
                     break;
                 }

@@ -259,7 +259,6 @@ char *load_kernel_source(const char *filename)
     size_t source_size;
     char *source_str;
 
-    // read the kernel file into ram
     fp = fopen(filename, "r");
     if (!fp) {
        perror("fopen");

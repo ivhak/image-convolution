@@ -29,9 +29,9 @@ const int gaussian_filter[]   = {  1,  4,  6,  4, 1,
                                    4, 16, 24, 16, 4,
                                    1,  4,  6,  4, 1 };
 
-const char* filter_names[]       = { "SobelY",     "SobelX",     "Laplacian 1",    "Laplacian 2",    "Laplacian 3",    "Gaussian"     };
-const int* filters[]            = { sobelY_filter, sobelX_filter, laplacian1_filter, laplacian2_filter, laplacian3_filter, gaussian_filter };
-unsigned int const filter_dimensions[] = { 3,            3,            3,                3,                3,                5              };
-float const filter_factors[]     = { 1.0,          1.0,          1.0,              1.0,              1.0,              1.0 / 256.0    };
+const char         *filter_names[]      = { "SobelY",      "SobelX",      "Laplacian 1",     "Laplacian 2",     "Laplacian 3",     "Gaussian"      };
+const int          *filters[]           = { sobelY_filter, sobelX_filter, laplacian1_filter, laplacian2_filter, laplacian3_filter, gaussian_filter };
+const unsigned int  filter_dimensions[] = { 3,             3,             3,                 3,                 3,                 5               };
+const float         filter_factors[]    = { 1.0,           1.0,           1.0,               1.0,               1.0,               1.0 / 256.0     };
 
 int const max_filter_index = sizeof(filter_dimensions) / sizeof(unsigned int);

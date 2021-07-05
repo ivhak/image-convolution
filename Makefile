@@ -23,11 +23,12 @@ HIP_CC  := hipcc
 
 
 DFLAGS :=
+CFLAGS := -Wall
 ifdef DEBUG
-CFLAGS := -g -O0
+CFLAGS += -g -O0
 DFLAGS += -DDEBUG
 else
-CFLAGS := -O3
+CFLAGS += -O3
 endif
 
 # Use shared memory in the Cuda, HIP and OpenCl implementations

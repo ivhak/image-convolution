@@ -58,13 +58,44 @@ Filters
 
 The following filters/kernels are defined in lib/filter.h, and the one to be used can
 be specified with the -k flag:
- - SobelY        (-k 0)
- - SobelX        (-k 1)
- - Lalplacian 1  (-k 2)
- - Lalplacian 2  (-k 3)
- - Lalplacian 3  (-k 4)
- - Gaussian      (-k 5)
 
+ * SobelY        (-k 0)
+
+    -1  -2  -1
+     0   0   0
+     1   2   1
+
+ * SobelX        (-k 1)
+
+    -1   0   1
+    -2   0   2
+    -1   0   1
+
+ * Laplacian 1   (-k 2)
+
+    -1  -4  -1
+    -4  20  -4
+    -1  -4  -1
+
+ * Laplacian 2   (-k 3)
+
+     0   1   0
+     1  -4   1
+     0   1   0
+
+ * Laplacian 3   (-k 4)
+
+    -1  -1  -1
+    -1   8  -1
+    -1  -1  -1
+
+ * Gaussian      (-k 5)
+
+     1   4   6   4  1
+     4  16  24  16  4
+     6  24  36  24  6
+     4  16  24  16  4
+     1   4   6   4  1
 
 Usage
 -----
