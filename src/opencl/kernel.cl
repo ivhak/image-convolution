@@ -1,7 +1,7 @@
 #define BLOCK_X 16
 #define BLOCK_Y 16
 
-__kernel void applyFilter(
+__kernel void apply_filter(
     __global unsigned char *in_r, __global unsigned char *out_r,
     __global unsigned char *in_g, __global unsigned char *out_g,
     __global unsigned char *in_b, __global unsigned char *out_b,

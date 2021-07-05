@@ -36,9 +36,9 @@ int main(int argc, char **argv) {
     unsigned int iterations = 1;
     char *output = NULL;
     char *input = NULL;
-    unsigned int filterIndex = 2;
+    unsigned int filter_index = 2;
 
-    parse_args(argc, argv, &iterations, &filterIndex, &output, &input);
+    parse_args(argc, argv, &iterations, &filter_index, &output, &input);
 
     /*
        Create the BMP image and load it from disk.
@@ -57,7 +57,7 @@ int main(int argc, char **argv) {
 
 
     const size_t size_of_channel = (image->width)*(image->height)*sizeof(unsigned char);
-    const size_t size_of_filter = filterDims[filterIndex]*filterDims[filterIndex]*sizeof(int);
+    const size_t size_of_filter = filter_dimensions[filter_index]*filter_dimensions[filter_index]*sizeof(int);
 
     imageSOA_t *image_soa = new_imageSOA(image->width, image->height);
     image_to_imageSOA(image, image_soa);
@@ -133,17 +133,17 @@ int main(int argc, char **argv) {
     d_out.b = clCreateBuffer(context, CL_MEM_READ_WRITE, size_of_channel, NULL, &err);
     DIE_IF_CL(err, "Could not create out buffer.");
 
-    d_filter_buf = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, size_of_filter, (void*)filters[filterIndex], &err);
+    d_filter_buf = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, size_of_filter, (void*)filters[filter_index], &err);
     DIE_IF_CL(err, "Could not create kernel buffer.");
 
     // Create the compute kernels. Two mostly identical kernels are used, but
     // the image data in/out is swapped. This makes it easy to use the output
     // of the last iteration as the input of the next, without having to swap
     // buffers or reset kernel parameters.
-    kernel1 = clCreateKernel(program, "applyFilter", &err);
+    kernel1 = clCreateKernel(program, "apply_filter", &err);
     DIE_IF_CL(err, "Could not create kernel");
 
-    kernel2 = clCreateKernel(program, "applyFilter", &err);
+    kernel2 = clCreateKernel(program, "apply_filter", &err);
     DIE_IF_CL(err, "Could not create kernel");
 
 
@@ -157,8 +157,8 @@ int main(int argc, char **argv) {
     err |= clSetKernelArg(kernel1, 6,   sizeof(cl_mem),         &d_filter_buf);
     err |= clSetKernelArg(kernel1, 7,   sizeof(unsigned int),   &image->width);
     err |= clSetKernelArg(kernel1, 8,   sizeof(unsigned int),   &image->height);
-    err |= clSetKernelArg(kernel1, 9,   sizeof(unsigned int),   &filterDims[filterIndex]);
-    err |= clSetKernelArg(kernel1, 10,  sizeof(float),          &filterFactors[filterIndex]);
+    err |= clSetKernelArg(kernel1, 9,   sizeof(unsigned int),   &filter_dimensions[filter_index]);
+    err |= clSetKernelArg(kernel1, 10,  sizeof(float),          &filter_factors[filter_index]);
     DIE_IF_CL(err, "Failed to set kernel argument.");
 
     err  = clSetKernelArg(kernel2, 0,   sizeof(cl_mem),         &d_out.r);
@@ -170,8 +170,8 @@ int main(int argc, char **argv) {
     err |= clSetKernelArg(kernel2, 6,   sizeof(cl_mem),         &d_filter_buf);
     err |= clSetKernelArg(kernel2, 7,   sizeof(unsigned int),   &image->width);
     err |= clSetKernelArg(kernel2, 8,   sizeof(unsigned int),   &image->height);
-    err |= clSetKernelArg(kernel2, 9,   sizeof(unsigned int),   &filterDims[filterIndex]);
-    err |= clSetKernelArg(kernel2, 10,  sizeof(float),          &filterFactors[filterIndex]);
+    err |= clSetKernelArg(kernel2, 9,   sizeof(unsigned int),   &filter_dimensions[filter_index]);
+    err |= clSetKernelArg(kernel2, 10,  sizeof(float),          &filter_factors[filter_index]);
     DIE_IF_CL(err, "Failed to set kernel argument.");
 
 
@@ -196,7 +196,7 @@ int main(int argc, char **argv) {
     // Stop the timer; calculate and print the elapsed time
     clock_gettime(CLOCK_MONOTONIC, &end_time);
     float execution_time = time_spent(start_time, end_time);
-    log_execution(filterNames[filterIndex], image->width, image->height, iterations, execution_time);
+    log_execution(filter_names[filter_index], image->width, image->height, iterations, execution_time);
 
     // Copy back from the device-side array: Channel red
     d_image_channels *d_image_channels_out = iterations % 2 == 0 ? &d_in : &d_out;

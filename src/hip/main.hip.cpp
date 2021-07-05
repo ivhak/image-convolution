@@ -34,8 +34,8 @@ typedef struct {
 __constant__ __device__ int d_filter[25];
 // Apply convolutional filter on image data
 __global__
-void applyFilter(d_image_channels in, d_image_channels out,
-                 unsigned int width, unsigned int height, unsigned int filterDim, float filterFactor)
+void apply_filter(d_image_channels in, d_image_channels out,
+                 unsigned int width, unsigned int height, unsigned int filterDim, float filter_factor)
 {
     unsigned int x = threadIdx.x + blockIdx.x*blockDim.x;
     unsigned int y = threadIdx.y + blockIdx.y*blockDim.y;
@@ -59,9 +59,9 @@ void applyFilter(d_image_channels in, d_image_channels out,
         }
     }
 
-    ar *= filterFactor;
-    ag *= filterFactor;
-    ab *= filterFactor;
+    ar *= filter_factor;
+    ag *= filter_factor;
+    ab *= filter_factor;
     ar = (ar < 0) ? 0 : ar;
     ag = (ag < 0) ? 0 : ag;
     ab = (ab < 0) ? 0 : ab;
@@ -78,9 +78,9 @@ int main(int argc, char **argv) {
     unsigned int iterations = 1;
     char *output = NULL;
     char *input = NULL;
-    unsigned int filterIndex = 2;
+    unsigned int filter_index = 2;
 
-    parse_args(argc, argv, &iterations, &filterIndex, &output, &input);
+    parse_args(argc, argv, &iterations, &filter_index, &output, &input);
 
     /*
        Create the BMP image and load it from disk.
@@ -99,7 +99,7 @@ int main(int argc, char **argv) {
 
 
     const size_t size_of_channel = (image->width)*(image->height)*sizeof(unsigned char);
-    const size_t size_of_filter = filterDims[filterIndex]*filterDims[filterIndex]*sizeof(int);
+    const size_t size_of_filter = filter_dimensions[filter_index]*filter_dimensions[filter_index]*sizeof(int);
 
     imageSOA_t *image_soa = new_imageSOA(image->width, image->height);
     image_to_imageSOA(image, image_soa);
@@ -121,7 +121,7 @@ int main(int argc, char **argv) {
     HIP_CHECK(hipMemcpy(d_in.g, image_soa->g, size_of_channel, hipMemcpyHostToDevice));
     HIP_CHECK(hipMemcpy(d_in.b, image_soa->b, size_of_channel, hipMemcpyHostToDevice));
 
-    HIP_CHECK(hipMemcpyToSymbol(HIP_SYMBOL(d_filter), filters[filterIndex], size_of_filter));
+    HIP_CHECK(hipMemcpyToSymbol(HIP_SYMBOL(d_filter), filters[filter_index], size_of_filter));
 
     // We want one thread per pixel. Set the block size, and based on that set
     // the grid size to the smallest multiple of block size such that
@@ -135,10 +135,10 @@ int main(int argc, char **argv) {
     clock_gettime(CLOCK_MONOTONIC, &start_time);
 
     for (unsigned int i = 0; i < iterations; i++) {
-        hipLaunchKernelGGL(applyFilter, dim3(grid_size), dim3(block_size), 0, 0,
+        hipLaunchKernelGGL(apply_filter, dim3(grid_size), dim3(block_size), 0, 0,
                            d_in, d_out,
                            image->width, image->height,
-                           filterDims[filterIndex], filterFactors[filterIndex]);
+                           filter_dimensions[filter_index], filter_factors[filter_index]);
         HIP_CHECK(hipGetLastError());
         // Swap the image and process_image
         swap_image_channels(&d_in.r, &d_out.r);
@@ -149,7 +149,7 @@ int main(int argc, char **argv) {
     // Stop the timer; calculate and print the elapsed time
     clock_gettime(CLOCK_MONOTONIC, &end_time);
     float execution_time = time_spent(start_time, end_time);
-    log_execution(filterNames[filterIndex], image->width, image->height, iterations, execution_time);
+    log_execution(filter_names[filter_index], image->width, image->height, iterations, execution_time);
 
     // Copy back from the device-side array
     // HIP_CHECK(hipMemcpy(image->rawdata, d_image_rawdata, size_of_all_pixels, hipMemcpyDeviceToHost));
@@ -164,7 +164,7 @@ int main(int argc, char **argv) {
     int max_active_blocks;
     int block_size_1d = block_size.x*block_size.y;
     hipOccupancyMaxActiveBlocksPerMultiprocessor(&max_active_blocks,
-                                                  applyFilter,
+                                                  apply_filter,
                                                   block_size_1d,
                                                   0);
 

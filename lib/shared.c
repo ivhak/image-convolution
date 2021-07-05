@@ -38,7 +38,7 @@ void help(char const *exec, char const opt, char const *optarg) {
     fprintf(out, "%s [options] <input-bmp> <output-bmp>\n", exec);
     fprintf(out, "\n");
     fprintf(out, "Options:\n");
-    fprintf(out, "  -k, --filter     <filter>        filter index (0<=x<=%u) (2)\n", maxFilterIndex -1);
+    fprintf(out, "  -k, --filter     <filter>        filter index (0<=x<=%u) (2)\n", max_filter_index -1);
     fprintf(out, "  -i, --iterations <iterations>    number of iterations (1)\n");
 
     fprintf(out, "\n");
@@ -67,7 +67,7 @@ void parse_args(int argc, char **argv, unsigned *iterations, unsigned *filterInd
                     graceful_exit(input,output);
                 case 'k':
                     parse = strtol(optarg, &endptr, 10);
-                    if (endptr == optarg || parse < 0 || parse >= maxFilterIndex) {
+                    if (endptr == optarg || parse < 0 || parse >= max_filter_index) {
                         help(argv[0], c, optarg);
                         error_exit(input,output);
                     }

@@ -34,7 +34,7 @@ typedef struct {
 __constant__ __device__ int d_filter[25];
 // Apply convolutional filter on image data
 __global__
-void applyFilter(d_image_channels in, d_image_channels out,
+void apply_filter(d_image_channels in, d_image_channels out,
                  unsigned int width, unsigned int height, unsigned int filterDim, float filterFactor)
 {
     unsigned int x = threadIdx.x + blockIdx.x*blockDim.x;
@@ -78,9 +78,9 @@ int main(int argc, char **argv) {
     unsigned int iterations = 1;
     char *output = NULL;
     char *input = NULL;
-    unsigned int filterIndex = 2;
+    unsigned int filter_index = 2;
 
-    parse_args(argc, argv, &iterations, &filterIndex, &output, &input);
+    parse_args(argc, argv, &iterations, &filter_index, &output, &input);
 
     /*
        Create the BMP image and load it from disk.
@@ -99,7 +99,7 @@ int main(int argc, char **argv) {
 
 
     const size_t size_of_channel = (image->width)*(image->height)*sizeof(unsigned char);
-    const size_t size_of_filter = filterDims[filterIndex]*filterDims[filterIndex]*sizeof(int);
+    const size_t size_of_filter = filter_dimensions[filter_index]*filter_dimensions[filter_index]*sizeof(int);
 
     imageSOA_t *image_soa = new_imageSOA(image->width, image->height);
     image_to_imageSOA(image, image_soa);
@@ -121,7 +121,7 @@ int main(int argc, char **argv) {
     cudaMemcpy(d_in.g, image_soa->g, size_of_channel, cudaMemcpyHostToDevice);
     cudaMemcpy(d_in.b, image_soa->b, size_of_channel, cudaMemcpyHostToDevice);
 
-    cudaMemcpyToSymbol(d_filter, filters[filterIndex], size_of_filter);
+    cudaMemcpyToSymbol(d_filter, filters[filter_index], size_of_filter);
 
     // We want one thread per pixel. Set the block size, and based on that set
     // the grid size to the smallest multiple of block size such that
@@ -136,10 +136,10 @@ int main(int argc, char **argv) {
     clock_gettime(CLOCK_MONOTONIC, &start_time);
 
     for (unsigned int i = 0; i < iterations; i++) {
-        applyFilter<<<grid_size, block_size>>>(d_in, d_out,
+        apply_filter<<<grid_size, block_size>>>(d_in, d_out,
                                                image->width, image->height,
-                                               filterDims[filterIndex],
-                                               filterFactors[filterIndex]);
+                                               filter_dimensions[filter_index],
+                                               filter_factors[filter_index]);
         // Swap the image and process_image
         swap_image_channels(&d_in.r, &d_out.r);
         swap_image_channels(&d_in.g, &d_out.g);
@@ -149,7 +149,7 @@ int main(int argc, char **argv) {
     // Stop the timer; calculate and print the elapsed time
     clock_gettime(CLOCK_MONOTONIC, &end_time);
     float execution_time = time_spent(start_time, end_time);
-    log_execution(filterNames[filterIndex], image->width, image->height, iterations, execution_time);
+    log_execution(filter_names[filter_index], image->width, image->height, iterations, execution_time);
 
     // Check for error
     cudaError_t error = cudaGetLastError();
@@ -166,7 +166,7 @@ int main(int argc, char **argv) {
     int max_active_blocks;
     int block_size_1d = block_size.x*block_size.y;
     cudaOccupancyMaxActiveBlocksPerMultiprocessor(&max_active_blocks,
-                                                  applyFilter,
+                                                  apply_filter,
                                                   block_size_1d,
                                                   0);
 

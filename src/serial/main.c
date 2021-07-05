@@ -50,10 +50,10 @@ int main(int argc, char **argv) {
     unsigned int iterations = 1;
     char *output = NULL;
     char *input = NULL;
-    unsigned int filterIndex = 2;
+    unsigned int filter_index = 2;
     int ret = 0;
 
-    parse_args(argc, argv, &iterations, &filterIndex, &output, &input);
+    parse_args(argc, argv, &iterations, &filter_index, &output, &input);
 
     // Create the BMP image and load it from disk.
     image_t *image = new_image(0,0);
@@ -82,9 +82,9 @@ int main(int argc, char **argv) {
                 image->data,
                 image->width,
                 image->height,
-                filters[filterIndex],
-                filterDims[filterIndex],
-                filterFactors[filterIndex]
+                filters[filter_index],
+                filter_dimensions[filter_index],
+                filter_factors[filter_index]
                 );
         swap_image(&processImage, &image);
     }
@@ -92,7 +92,7 @@ int main(int argc, char **argv) {
 
     clock_gettime(CLOCK_MONOTONIC, &end_time);
     float execution_time = time_spent(start_time, end_time);
-    log_execution(filterNames[filterIndex], image->width, image->height, iterations, execution_time);
+    log_execution(filter_names[filter_index], image->width, image->height, iterations, execution_time);
 
 
     //Write the image back to disk
