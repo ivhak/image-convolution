@@ -159,8 +159,8 @@ int main(int argc, char **argv) {
     cudaDeviceSynchronize();
     // Stop the timer; calculate and print the elapsed time
     clock_gettime(CLOCK_MONOTONIC, &end_time);
-    float spentTime = ((end_time.tv_sec - start_time.tv_sec)) + ((end_time.tv_nsec - start_time.tv_nsec)) * 1e-9;
-    log_execution(filterNames[filterIndex], image->width, image->height, iterations, spentTime);
+    float execution_time = time_spent(start_time, end_time);
+    log_execution(filterNames[filterIndex], image->width, image->height, iterations, execution_time);
 
     // Check for error
     cudaError_t error = cudaGetLastError();

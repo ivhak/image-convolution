@@ -90,8 +90,8 @@ int main(int argc, char **argv) {
     freeBmpImage(processImage);
 
     clock_gettime(CLOCK_MONOTONIC, &end_time);
-    float spentTime = ((end_time.tv_sec - start_time.tv_sec)) + ((end_time.tv_nsec - start_time.tv_nsec)) * 1e-9;
-    log_execution(filterNames[filterIndex], image->width, image->height, iterations, spentTime);
+    float execution_time = time_spent(start_time, end_time);
+    log_execution(filterNames[filterIndex], image->width, image->height, iterations, execution_time);
 
 
     //Write the image back to disk

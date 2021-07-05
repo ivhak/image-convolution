@@ -6,6 +6,7 @@
 #include "shared.h"
 #include "bitmap.h"
 
+
 // Convolutional Filter Examples, each with dimension 3,
 // gaussian filter with dimension 5
 
@@ -150,7 +151,12 @@ void parse_args(int argc, char **argv, unsigned *iterations, unsigned *filterInd
 
 }
 
+float time_spent(struct timespec t0, struct timespec t1)
+{
+    return ((t1.tv_sec - t0.tv_sec)) + ((t1.tv_nsec - t0.tv_nsec)) * 1e-9;
+}
+
 void log_execution(const char *filter_name, unsigned width, unsigned height, unsigned iterations, float spent_time) {
 
-    printf("%-11s, %u x %u pixels, %4u iterations: %.3f seconds\n", filter_name, width, height, iterations, spent_time);
+    printf("%-11s, %u x %u pixels, %4u iterations: %.6f seconds\n", filter_name, width, height, iterations, spent_time);
 }

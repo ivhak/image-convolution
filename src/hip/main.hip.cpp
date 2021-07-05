@@ -159,7 +159,8 @@ int main(int argc, char **argv) {
     hipDeviceSynchronize();
     // Stop the timer; calculate and print the elapsed time
     clock_gettime(CLOCK_MONOTONIC, &end_time);
-    float spentTime = ((end_time.tv_sec - start_time.tv_sec)) + ((end_time.tv_nsec - start_time.tv_nsec)) * 1e-9;
+    float execution_time = time_spent(start_time, end_time);
+    log_execution(filterNames[filterIndex], image->width, image->height, iterations, execution_time);
 
     // Copy back from the device-side array
     // HIP_CHECK(hipMemcpy(image->rawdata, d_image_rawdata, size_of_all_pixels, hipMemcpyDeviceToHost));
@@ -168,7 +169,6 @@ int main(int argc, char **argv) {
     HIP_CHECK(hipMemcpy(image_channel_b->rawdata, d_in.b, size_of_channel, hipMemcpyDeviceToHost));
 
 
-    log_execution(filterNames[filterIndex], image->width, image->height, iterations, spentTime);
 
 #ifdef VERBOSE
     // calculate theoretical occupancy

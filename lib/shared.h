@@ -1,6 +1,8 @@
 #ifndef SHARED_H
 #define SHARED_H
 #include "bitmap.h"
+#include <time.h>
+
 extern const int sobelYFilter[];
 extern const int sobelXFilter[];
 extern const int laplacian1Filter[];
@@ -23,6 +25,8 @@ void parse_args(int argc, char **argv, unsigned *iterations, unsigned *filterInd
 // Helper function to swap bmpImageChannel pointers
 void swapImageRawdata(pixel **one, pixel **two);
 void swapImage(bmpImage **one, bmpImage **two);
+
+float time_spent(struct timespec t0, struct timespec t1);
 
 void log_execution(const char *filter_name, unsigned width, unsigned height, unsigned iterations, float spent_time);
 
