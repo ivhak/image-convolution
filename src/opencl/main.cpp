@@ -22,7 +22,7 @@ typedef struct {
     cl_mem r;
     cl_mem g;
     cl_mem b;
-} image_channels;
+} d_image_channels;
 
 char *load_kernel_source(const char *filename);
 void print_platform_info(cl_platform_id platform_id);
@@ -59,13 +59,8 @@ int main(int argc, char **argv) {
     const size_t size_of_channel = (image->width)*(image->height)*sizeof(unsigned char);
     const size_t size_of_filter = filterDims[filterIndex]*filterDims[filterIndex]*sizeof(int);
 
-    bmp_image_channel_t *image_channel_r = new_bmp_image_channel(image->width, image->height);
-    bmp_image_channel_t *image_channel_g = new_bmp_image_channel(image->width, image->height);
-    bmp_image_channel_t *image_channel_b = new_bmp_image_channel(image->width, image->height);
-
-    extract_image_channel(image_channel_r, image, extract_red);
-    extract_image_channel(image_channel_g, image, extract_green);
-    extract_image_channel(image_channel_b, image, extract_blue);
+    bmp_image_soa_t *image_soa = new_bmp_image_soa(image->width, image->height);
+    image_to_soa_image(image, image_soa);
 
     // OpenCL source can be placed in the source code as text strings or read from another file.
     char *source_str = load_kernel_source("src/opencl/kernel.cl");
@@ -82,8 +77,8 @@ int main(int argc, char **argv) {
     cl_kernel         kernel1;
     cl_kernel         kernel2;
 
-    image_channels d_out;
-    image_channels d_in;
+    d_image_channels d_out;
+    d_image_channels d_in;
 
     cl_mem  d_filter_buf;
 
@@ -128,9 +123,9 @@ int main(int argc, char **argv) {
 
 
     // Allocate the buffer memory objects aka device side buffers
-    d_in.r  = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, size_of_channel, (void*)image_channel_r->rawdata, &err);
-    d_in.g  = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, size_of_channel, (void*)image_channel_g->rawdata, &err);
-    d_in.b  = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, size_of_channel, (void*)image_channel_b->rawdata, &err);
+    d_in.r  = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, size_of_channel, (void*)image_soa->r, &err);
+    d_in.g  = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, size_of_channel, (void*)image_soa->g, &err);
+    d_in.b  = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, size_of_channel, (void*)image_soa->b, &err);
     DIE_IF_CL(err, "Could not create in buffer.");
 
     d_out.r = clCreateBuffer(context, CL_MEM_READ_WRITE, size_of_channel, NULL, &err);
@@ -204,16 +199,17 @@ int main(int argc, char **argv) {
     log_execution(filterNames[filterIndex], image->width, image->height, iterations, execution_time);
 
     // Copy back from the device-side array: Channel red
-    image_channels *d_image_channels = iterations % 2 == 0 ? &d_in : &d_out;
-    err  = clEnqueueReadBuffer(queue, d_image_channels->r, CL_TRUE, 0, size_of_channel, image_channel_r->rawdata, 0, NULL, NULL);
-    err |= clEnqueueReadBuffer(queue, d_image_channels->g, CL_TRUE, 0, size_of_channel, image_channel_g->rawdata, 0, NULL, NULL);
-    err |= clEnqueueReadBuffer(queue, d_image_channels->b, CL_TRUE, 0, size_of_channel, image_channel_b->rawdata, 0, NULL, NULL);
+    d_image_channels *d_image_channels_out = iterations % 2 == 0 ? &d_in : &d_out;
+    err  = clEnqueueReadBuffer(queue, d_image_channels_out->r, CL_TRUE, 0, size_of_channel, image_soa->r, 0, NULL, NULL);
+    err |= clEnqueueReadBuffer(queue, d_image_channels_out->g, CL_TRUE, 0, size_of_channel, image_soa->g, 0, NULL, NULL);
+    err |= clEnqueueReadBuffer(queue, d_image_channels_out->b, CL_TRUE, 0, size_of_channel, image_soa->b, 0, NULL, NULL);
     DIE_IF_CL(err, "Failed to copy back to device.");
 
     clFinish(queue);
 
-    map_image_channels_to_image(image, image_channel_r, image_channel_g, image_channel_b);
 
+    soa_image_to_image(image_soa, image);
+    free_image_soa(image_soa);
     //Write the image back to disk
     if (save_bmp_image(image, output) != 0) {
         fprintf(stderr, "Could not save output to '%s'!\n", output);

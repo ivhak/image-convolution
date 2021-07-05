@@ -28,13 +28,13 @@ typedef struct {
     unsigned char *r;
     unsigned char *g;
     unsigned char *b;
-} image_channels;
+} d_image_channels;
 
 
 __constant__ __device__ int d_filter[25];
 // Apply convolutional filter on image data
 __global__
-void applyFilter(image_channels in, image_channels out,
+void applyFilter(d_image_channels in, d_image_channels out,
                  unsigned int width, unsigned int height, unsigned int filterDim, float filterFactor)
 {
     unsigned int x = threadIdx.x + blockIdx.x*blockDim.x;
@@ -101,15 +101,10 @@ int main(int argc, char **argv) {
     const size_t size_of_channel = (image->width)*(image->height)*sizeof(unsigned char);
     const size_t size_of_filter = filterDims[filterIndex]*filterDims[filterIndex]*sizeof(int);
 
-    bmp_image_channel_t *image_channel_r = new_bmp_image_channel(image->width, image->height);
-    bmp_image_channel_t *image_channel_g = new_bmp_image_channel(image->width, image->height);
-    bmp_image_channel_t *image_channel_b = new_bmp_image_channel(image->width, image->height);
+    bmp_image_soa_t *image_soa = new_bmp_image_soa(image->width, image->height);
+    image_to_soa_image(image, image_soa);
 
-    extract_image_channel(image_channel_r, image, extract_red);
-    extract_image_channel(image_channel_g, image, extract_green);
-    extract_image_channel(image_channel_b, image, extract_blue);
-
-    image_channels d_in, d_out;
+    d_image_channels d_in, d_out;
 
     // Allocate space for both device copies of the image, as well as for the filter.
     HIP_CHECK(hipMalloc((void **)&d_in.r,  size_of_channel));
@@ -122,9 +117,9 @@ int main(int argc, char **argv) {
     HIP_CHECK(hipMalloc((void **)&d_out.g, size_of_channel));
 
     // Set the device side arrays.
-    HIP_CHECK(hipMemcpy(d_in.r, image_channel_r->rawdata, size_of_channel, hipMemcpyHostToDevice));
-    HIP_CHECK(hipMemcpy(d_in.g, image_channel_g->rawdata, size_of_channel, hipMemcpyHostToDevice));
-    HIP_CHECK(hipMemcpy(d_in.b, image_channel_b->rawdata, size_of_channel, hipMemcpyHostToDevice));
+    HIP_CHECK(hipMemcpy(d_in.r, image_soa->r, size_of_channel, hipMemcpyHostToDevice));
+    HIP_CHECK(hipMemcpy(d_in.g, image_soa->g, size_of_channel, hipMemcpyHostToDevice));
+    HIP_CHECK(hipMemcpy(d_in.b, image_soa->b, size_of_channel, hipMemcpyHostToDevice));
 
     HIP_CHECK(hipMemcpyToSymbol(HIP_SYMBOL(d_filter), filters[filterIndex], size_of_filter));
 
@@ -158,9 +153,9 @@ int main(int argc, char **argv) {
 
     // Copy back from the device-side array
     // HIP_CHECK(hipMemcpy(image->rawdata, d_image_rawdata, size_of_all_pixels, hipMemcpyDeviceToHost));
-    HIP_CHECK(hipMemcpy(image_channel_r->rawdata, d_in.r, size_of_channel, hipMemcpyDeviceToHost));
-    HIP_CHECK(hipMemcpy(image_channel_g->rawdata, d_in.g, size_of_channel, hipMemcpyDeviceToHost));
-    HIP_CHECK(hipMemcpy(image_channel_b->rawdata, d_in.b, size_of_channel, hipMemcpyDeviceToHost));
+    HIP_CHECK(hipMemcpy(image_soa->r, d_in.r, size_of_channel, hipMemcpyDeviceToHost));
+    HIP_CHECK(hipMemcpy(image_soa->g, d_in.g, size_of_channel, hipMemcpyDeviceToHost));
+    HIP_CHECK(hipMemcpy(image_soa->b, d_in.b, size_of_channel, hipMemcpyDeviceToHost));
 
 
 
@@ -192,12 +187,9 @@ int main(int argc, char **argv) {
     hipFree(d_out.g);
     hipFree(d_out.b);
 
-    map_image_channels_to_image(image, image_channel_r, image_channel_g, image_channel_b);
+    soa_image_to_image(image_soa, image);
 
-    free_bmp_image_channel(image_channel_r);
-    free_bmp_image_channel(image_channel_g);
-    free_bmp_image_channel(image_channel_b);
-
+    free_image_soa(image_soa);
     //Write the image back to disk
     if (save_bmp_image(image, output) != 0) {
         fprintf(stderr, "Could not save output to '%s'!\n", output);

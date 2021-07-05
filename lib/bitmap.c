@@ -57,53 +57,23 @@ bmp_image_t * new_bmp_image(unsigned int const width, unsigned int const height)
     return new;
 }
 
-void free_bmp_image_channel_data(bmp_image_channel_t *image) {
-    if (image->data != NULL) {
-        free(image->data);
-        image->data = NULL;
-    }
-    if (image->rawdata != NULL) {
-        free(image->rawdata);
-        image->rawdata = NULL;
-    }
-}
-
-void free_bmp_image_channel(bmp_image_channel_t *image) {
-    free_bmp_image_channel_data(image);
-    if (image) {
-        free(image);
-    }
-}
-
-int reallocate_bmp_image_channel_buffer(bmp_image_channel_t *image, unsigned int const width, unsigned int const height) {
-    free_bmp_image_channel_data(image);
-    if (height * width > 0) {
-        image->rawdata = calloc(image->height * image->width, sizeof(unsigned char));
-        if (image->rawdata == NULL) {
-            return 1;
-        }
-        image->data = malloc(image->height * sizeof(unsigned char *));
-        if (image->data == NULL) {
-            free_bmp_image_channel_data(image);
-            return 1;
-        }
-        for (unsigned int i = 0; i < height; i++) {
-            image->data[i] = &(image->rawdata[i * width]);
-        }
-    }
-    return 0;
-}
-
-bmp_image_channel_t * new_bmp_image_channel(unsigned int const width, unsigned int const height) {
-    bmp_image_channel_t *new = malloc(sizeof(bmp_image_channel_t));
+bmp_image_soa_t * new_bmp_image_soa(unsigned int const width, unsigned int const height) {
+    bmp_image_soa_t *new = malloc(sizeof(bmp_image_soa_t));
     if (new == NULL)
         return NULL;
     new->width = width;
     new->height = height;
-    new->data = NULL;
-    new->rawdata = NULL;
-    reallocate_bmp_image_channel_buffer(new, width, height);
+    new->r = malloc(width*height*sizeof(unsigned char));;
+    new->g = malloc(width*height*sizeof(unsigned char));;
+    new->b = malloc(width*height*sizeof(unsigned char));;
     return new;
+}
+
+void free_image_soa(bmp_image_soa_t *image)
+{
+    free(image->r);
+    free(image->g);
+    free(image->b);
 }
 
 
@@ -192,40 +162,30 @@ int save_bmp_image(bmp_image_t *image, char const *filename) {
     return ret;
 }
 
-int extract_image_channel(bmp_image_channel_t *to, bmp_image_t *from, unsigned char extractMethod(pixel from)) {
-    if (from->width > to->width || from->height > to->height)
-        return 1;
-    for (unsigned int y = 0; y < from->height; y++) {
-        for (unsigned int x = 0; x < from->width; x++) {
-            to->data[y][x] = extractMethod(from->data[y][x]);
-        }
-    }
-    return 0;
-}
 
-unsigned char extract_red(pixel from) {
-    return from.r;
-}
-unsigned char extract_green(pixel from) {
-    return from.g;
-}
-unsigned char extract_blue(pixel from) {
-    return from.b;
-}
-
-
-
-void map_image_channels_to_image(bmp_image_t *image,
-                                 bmp_image_channel_t *red,
-                                 bmp_image_channel_t *green,
-                                 bmp_image_channel_t *blue)
+int image_to_soa_image(bmp_image_t *image, bmp_image_soa_t *soa_image)
 {
-    for (int i = 0; i < image->height; i++)
-        for (int j = 0; j < image->width; j++) {
-            image->data[i][j].b = blue->data[i][j];
-            image->data[i][j].g = green->data[i][j];
-            image->data[i][j].r = red->data[i][j];
-        }
+    if (image->width  != soa_image->width)  return 0;
+    if (image->height != soa_image->height) return 0;
+
+    for (int i = 0; i < image->height*image->width; i++) {
+        soa_image->r[i] = image->rawdata[i].r;
+        soa_image->g[i] = image->rawdata[i].g;
+        soa_image->b[i] = image->rawdata[i].b;
+    }
+    return 1;
+}
+
+int soa_image_to_image(bmp_image_soa_t *soa_image, bmp_image_t *image)
+{
+    if (image->width  != soa_image->width)  return 0;
+    if (image->height != soa_image->height) return 0;
+    for (int i = 0; i < image->height*image->width; i++) {
+        image->rawdata[i].r = soa_image->r[i];
+        image->rawdata[i].g = soa_image->g[i];
+        image->rawdata[i].b = soa_image->b[i];
+    }
+    return 1;
 }
 
 void swap_image_channels(unsigned char **in, unsigned char **out)
