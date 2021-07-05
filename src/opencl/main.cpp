@@ -43,15 +43,15 @@ int main(int argc, char **argv) {
     /*
        Create the BMP image and load it from disk.
        */
-    bmp_image_t *image = new_bmp_image(0,0);
+    image_t *image = new_image(0,0);
     if (image == NULL) {
         fprintf(stderr, "Could not allocate new image!\n");
         error_exit(&input,&output);
     }
 
-    if (load_bmp_image(image, input) != 0) {
+    if (load_image(image, input) != 0) {
         fprintf(stderr, "Could not load bmp image '%s'!\n", input);
-        free_bmp_image(image);
+        free_image(image);
         error_exit(&input,&output);
     }
 
@@ -59,8 +59,8 @@ int main(int argc, char **argv) {
     const size_t size_of_channel = (image->width)*(image->height)*sizeof(unsigned char);
     const size_t size_of_filter = filterDims[filterIndex]*filterDims[filterIndex]*sizeof(int);
 
-    bmp_image_soa_t *image_soa = new_bmp_image_soa(image->width, image->height);
-    image_to_soa_image(image, image_soa);
+    imageSOA_t *image_soa = new_imageSOA(image->width, image->height);
+    image_to_imageSOA(image, image_soa);
 
     // OpenCL source can be placed in the source code as text strings or read from another file.
     char *source_str = load_kernel_source("src/opencl/kernel.cl");
@@ -208,12 +208,12 @@ int main(int argc, char **argv) {
     clFinish(queue);
 
 
-    soa_image_to_image(image_soa, image);
-    free_image_soa(image_soa);
+    imageSOA_to_image (image_soa, image);
+    free_imageSOA(image_soa);
     //Write the image back to disk
-    if (save_bmp_image(image, output) != 0) {
+    if (save_image(image, output) != 0) {
         fprintf(stderr, "Could not save output to '%s'!\n", output);
-        free_bmp_image(image);
+        free_image(image);
         error_exit(&input,&output);
     };
 

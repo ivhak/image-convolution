@@ -6,7 +6,7 @@
 
 #define BMP_HEADER_SIZE 54
 
-void free_bmp_data(bmp_image_t *image) {
+void free_data(image_t *image) {
     if (image->data != NULL) {
         free(image->data);
         image->data = NULL;
@@ -18,15 +18,15 @@ void free_bmp_data(bmp_image_t *image) {
 }
 
 
-void free_bmp_image(bmp_image_t *image) {
-    free_bmp_data(image);
+void free_image(image_t *image) {
+    free_data(image);
     if (image) {
         free(image);
     }
 }
 
-int reallocate_bmp_buffer(bmp_image_t *image, unsigned int const width, unsigned int const height) {
-    free_bmp_data(image);
+int reallocate_buffer(image_t *image, unsigned int const width, unsigned int const height) {
+    free_data(image);
     if (height * width > 0) {
         image->rawdata = calloc(image->height * image->width, sizeof(pixel));
         if (image->rawdata == NULL) {
@@ -34,7 +34,7 @@ int reallocate_bmp_buffer(bmp_image_t *image, unsigned int const width, unsigned
         }
         image->data = malloc(image->height * sizeof(pixel *));
         if (image->data == NULL) {
-            free_bmp_data(image);
+            free_data(image);
             return 1;
         }
         for (unsigned int i = 0; i < height; i++) {
@@ -45,20 +45,20 @@ int reallocate_bmp_buffer(bmp_image_t *image, unsigned int const width, unsigned
 }
 
 
-bmp_image_t * new_bmp_image(unsigned int const width, unsigned int const height) {
-    bmp_image_t *new = malloc(sizeof(bmp_image_t));
+image_t * new_image(unsigned int const width, unsigned int const height) {
+    image_t *new = malloc(sizeof(image_t));
     if (new == NULL)
         return NULL;
     new->width = width;
     new->height = height;
     new->data = NULL;
     new->rawdata = NULL;
-    reallocate_bmp_buffer(new, width, height);
+    reallocate_buffer(new, width, height);
     return new;
 }
 
-bmp_image_soa_t * new_bmp_image_soa(unsigned int const width, unsigned int const height) {
-    bmp_image_soa_t *new = malloc(sizeof(bmp_image_soa_t));
+imageSOA_t * new_imageSOA(unsigned int const width, unsigned int const height) {
+    imageSOA_t *new = malloc(sizeof(imageSOA_t));
     if (new == NULL)
         return NULL;
     new->width = width;
@@ -69,7 +69,7 @@ bmp_image_soa_t * new_bmp_image_soa(unsigned int const width, unsigned int const
     return new;
 }
 
-void free_image_soa(bmp_image_soa_t *image)
+void free_imageSOA(imageSOA_t *image)
 {
     free(image->r);
     free(image->g);
@@ -78,21 +78,21 @@ void free_image_soa(bmp_image_soa_t *image)
 
 
 
-int load_bmp_image(bmp_image_t *image, char const *filename) {
+int load_image(image_t *image, char const *filename) {
     int ret = 1;
-    FILE* fImage = fopen(filename, "rb");   //read the file
-    if (!fImage) {
+    FILE* fimage = fopen(filename, "rb");   //read the file
+    if (!fimage) {
         goto failed_file;
     }
 
     unsigned char header[BMP_HEADER_SIZE];
-    if (fread(header, sizeof(unsigned char), BMP_HEADER_SIZE, fImage) < BMP_HEADER_SIZE) {
+    if (fread(header, sizeof(unsigned char), BMP_HEADER_SIZE, fimage) < BMP_HEADER_SIZE) {
         goto failed_read;
     }
     image->width = *(int *) &header[18];
     image->height = *(int *) &header[22];
 
-    reallocate_bmp_buffer(image, image->width, image->height);
+    reallocate_buffer(image, image->width, image->height);
     if (image->rawdata == NULL) {
         goto failed_read;
     }
@@ -106,22 +106,22 @@ int load_bmp_image(bmp_image_t *image, char const *filename) {
     unsigned char* data = malloc(paddedLineSize * sizeof(unsigned char));
 
     for (unsigned int y=0; y < image->height; y++ ) {
-        if (fread( data, sizeof(unsigned char), paddedLineSize, fImage) < paddedLineSize) {
+        if (fread( data, sizeof(unsigned char), paddedLineSize, fimage) < paddedLineSize) {
             goto failed_read;
         }
         memcpy(image->data[y], data, lineSize);
     }
     ret = 0;
 failed_read:
-    fclose(fImage); //close the file
+    fclose(fimage); //close the file
 failed_file:
     return ret;
 }
 
-int save_bmp_image(bmp_image_t *image, char const *filename) {
+int save_image(image_t *image, char const *filename) {
     int ret = 0;
-    FILE *fImage=fopen(filename,"wb");
-    if(!fImage) {
+    FILE *fimage=fopen(filename,"wb");
+    if(!fimage) {
         return 1;
     }
 
@@ -142,28 +142,28 @@ int save_bmp_image(bmp_image_t *image, char const *filename) {
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     };
 
-    if (fwrite(header, sizeof(unsigned char), BMP_HEADER_SIZE,fImage) < BMP_HEADER_SIZE) {
+    if (fwrite(header, sizeof(unsigned char), BMP_HEADER_SIZE,fimage) < BMP_HEADER_SIZE) {
         ret = 1;
     } else {
         for (unsigned int i = 0; i < image->height; i++) {
-            if (fwrite(image->data[i], sizeof(pixel), image->width ,fImage) < image->width)  {
+            if (fwrite(image->data[i], sizeof(pixel), image->width ,fimage) < image->width)  {
                 ret = 1;
                 break;
             }
             if (padding > 0) {
-                if (fwrite(padBuffer, sizeof(char), padding ,fImage) < padding)  {
+                if (fwrite(padBuffer, sizeof(char), padding ,fimage) < padding)  {
                     ret = 1;
                     break;
                 }
             }
         }
     }
-    fclose(fImage);
+    fclose(fimage);
     return ret;
 }
 
 
-int image_to_soa_image(bmp_image_t *image, bmp_image_soa_t *soa_image)
+int image_to_imageSOA(image_t *image, imageSOA_t *soa_image)
 {
     if (image->width  != soa_image->width)  return 0;
     if (image->height != soa_image->height) return 0;
@@ -176,7 +176,7 @@ int image_to_soa_image(bmp_image_t *image, bmp_image_soa_t *soa_image)
     return 1;
 }
 
-int soa_image_to_image(bmp_image_soa_t *soa_image, bmp_image_t *image)
+int imageSOA_to_image(imageSOA_t *soa_image, image_t *image)
 {
     if (image->width  != soa_image->width)  return 0;
     if (image->height != soa_image->height) return 0;
@@ -195,15 +195,15 @@ void swap_image_channels(unsigned char **in, unsigned char **out)
     *out = tmp;
 }
 
-// Helper function to swap bmpImageChannel pointers
+// Helper function to swap bmpimageChannel pointers
 void swap_image_rawdata(pixel **one, pixel **two) {
     pixel *helper = *two;
     *two = *one;
     *one = helper;
 }
 
-void swap_bmp_image(bmp_image_t **one, bmp_image_t **two) {
-    bmp_image_t *helper = *two;
+void swap_image(image_t **one, image_t **two) {
+    image_t *helper = *two;
     *two = *one;
     *one = helper;
 }

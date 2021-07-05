@@ -56,15 +56,15 @@ int main(int argc, char **argv) {
     parse_args(argc, argv, &iterations, &filterIndex, &output, &input);
 
     // Create the BMP image and load it from disk.
-    bmpImage *image = newBmpImage(0,0);
+    image_t *image = new_image(0,0);
     if (image == NULL) {
         fprintf(stderr, "Could not allocate new image!\n");
         goto error_exit;
     }
 
-    if (loadBmpImage(image, input) != 0) {
+    if (load_image(image, input) != 0) {
         fprintf(stderr, "Could not load bmp image '%s'!\n", input);
-        freeBmpImage(image);
+        free_image(image);
         goto error_exit;
     }
 
@@ -76,7 +76,7 @@ int main(int argc, char **argv) {
     // Here we do the actual computation!
     // image->data is a 2-dimensional array of pixel which is accessed row first ([y][x])
     // each pixel is a struct of 3 unsigned char for the red, blue and green colour channel
-    bmpImage *processImage = newBmpImage(image->width, image->height);
+    image_t *processImage = new_image(image->width, image->height);
     for (unsigned int i = 0; i < iterations; i ++) {
         applyKernel(processImage->data,
                 image->data,
@@ -86,9 +86,9 @@ int main(int argc, char **argv) {
                 filterDims[filterIndex],
                 filterFactors[filterIndex]
                 );
-        swapImage(&processImage, &image);
+        swap_image(&processImage, &image);
     }
-    freeBmpImage(processImage);
+    free_image(processImage);
 
     clock_gettime(CLOCK_MONOTONIC, &end_time);
     float execution_time = time_spent(start_time, end_time);
@@ -96,9 +96,9 @@ int main(int argc, char **argv) {
 
 
     //Write the image back to disk
-    if (saveBmpImage(image, output) != 0) {
+    if (save_image(image, output) != 0) {
         fprintf(stderr, "Could not save output to '%s'!\n", output);
-        freeBmpImage(image);
+        free_image(image);
         goto error_exit;
     };
 

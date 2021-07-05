@@ -12,7 +12,7 @@ typedef struct {
     unsigned int height;
     pixel *rawdata;
     pixel **data;
-} bmp_image_t;
+} image_t;
 
 typedef struct {
     unsigned int width;
@@ -20,29 +20,21 @@ typedef struct {
     unsigned char *r;
     unsigned char *g;
     unsigned char *b;
-} bmp_image_soa_t;
+} imageSOA_t;
 
-typedef struct {
-    unsigned int width;
-    unsigned int height;
-    unsigned char *rawdata;
-    unsigned char **data;
-} bmp_image_channel_t;
+image_t *new_image(unsigned int const width, unsigned int const height);
+void free_image(image_t *image_t);
+int load_image(image_t *image_t, char const *filename);
+int save_image(image_t *image_t, char const *filename);
 
+imageSOA_t *new_imageSOA(unsigned int const width, unsigned int const height);
+void free_imageSOA(imageSOA_t *image_t);
 
-bmp_image_t *new_bmp_image(unsigned int const width, unsigned int const height);
-void free_bmp_image(bmp_image_t *image);
-int load_bmp_image(bmp_image_t *image, char const *filename);
-int save_bmp_image(bmp_image_t *image, char const *filename);
-
-bmp_image_soa_t *new_bmp_image_soa(unsigned int const width, unsigned int const height);
-void free_image_soa(bmp_image_soa_t *image);
-
-int image_to_soa_image(bmp_image_t     *image,     bmp_image_soa_t *soa_image);
-int soa_image_to_image(bmp_image_soa_t *soa_image, bmp_image_t     *image);
+int image_to_imageSOA(image_t  *image,     imageSOA_t *soa_image);
+int imageSOA_to_image(imageSOA_t *image_soa, image_t    *image);
 
 void swap_image_rawdata(pixel **one, pixel **two);
-void swap_image(bmp_image_t **one, bmp_image_t **two);
+void swap_image(image_t **one, image_t **two);
 void swap_image_channels(unsigned char **in, unsigned char **out);
 
 #endif
