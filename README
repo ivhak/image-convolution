@@ -1,0 +1,79 @@
+Image Convolution Example
+-------------------------
+
+Implementation of a general image convolution algorithm, based on code written
+for an assignment in the course TDT4200 Parallel Computing at NTNU Trondheim,
+Fall 2020.
+
+Implementations in CUDA, HIP, OpenCL and plain, serial C. All implementations
+take a bitmap image and apply a number of iterations with a given convolution
+kernel (see Usage).
+
+Building
+--------
+
+CUDA:
+
+    make cuda
+
+HIP:
+
+    make hip
+
+OpenCL:
+
+    make opencl
+
+
+Serial:
+
+    make serial
+
+
+Tools
+-----
+
+There are also some tools included in src/tools:
+
+- `bmpdiff` checks whether two bitmap images are equal and creates a diff if
+  they are not. The diff is simply a new bitmap image where the differing pixels
+  are set to (255,0,0) (red).
+
+- `bmptile` takes an input bitmap image and tiles it X times in the width
+  direction and Y times in the height direction to create a larger image.
+
+The tools can be built by running
+
+    make tools
+
+
+Data
+----
+
+An example bitmap image can be found in data/before.bmp. Larger images for benchmarking
+can easily be created with `bmptile`.
+
+Filters
+-------
+
+The following filters/kernels are defined in lib/filter.h, and the one to be used can
+be specified with the -k flag:
+ - SobelY        (-k 0)
+ - SobelX        (-k 1)
+ - Lalplacian 1  (-k 2)
+ - Lalplacian 2  (-k 3)
+ - Lalplacian 3  (-k 4)
+ - Gaussian      (-k 5)
+
+
+Usage
+-----
+
+    ./image_convolution_[cuda|hip|opencl|serial] [options] <input-bmp> <output-bmp>
+
+    Options:
+      -k, --filter     <filter>        filter index (0<=x<=5) (2)
+      -i, --iterations <iterations>    number of iterations (1)
+
+    Example: ./image_convolution_[cuda|hip|opencl|serial] data/before.bmp after.bmp -i 10000
+
