@@ -7,4 +7,7 @@ examples/bmpnegative
 examples/bmpnegative-cuda
 examples/bmpnegative-hip
 out/
+run.sbatch
+run.sh
+synch.sh
 jobs/

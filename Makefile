@@ -47,7 +47,6 @@ cuda:   $(CUDA_OUT)
 opencl: $(OPENCL_OUT)
 serial: $(SERIAL_OUT)
 tools:  bmpdiff bmptile
-examples:  bmpnegative bmpnegative-cuda
 
 bmpdiff: $(LIB_OBJ) src/tools/bmpdiff.c
 	$(CC) $(CFLAGS) $^ -o $@
