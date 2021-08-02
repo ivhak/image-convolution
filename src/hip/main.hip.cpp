@@ -1,8 +1,6 @@
 #include "hip/hip_runtime.h"
-#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-#include <getopt.h>
 #include <stdlib.h>
 #include <time.h>
 
@@ -138,7 +136,7 @@ int main(int argc, char **argv) {
     clock_gettime(CLOCK_MONOTONIC, &start_time);
 
     for (unsigned int i = 0; i < iterations; i++) {
-        hipLaunchKernelGGL(apply_filter, dim3(grid_size), dim3(block_size), 0, 0,
+        hipLaunchKernelGGL(apply_filter, grid_size, block_size, 0, 0,
                            d_in, d_out,
                            image->width, image->height,
                            filter_dimensions[filter_index], filter_factors[filter_index]);

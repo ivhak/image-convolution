@@ -2,9 +2,10 @@
 
 set -o errexit
 
-KERNELS=(sobelY sobelX laplacian1 laplacian2 laplacian3 gaussian )
+KERNELS=(laplacian3 gaussian )
 # BINS=("image_convolution_opencl" "image_convolution_hip")
-BINS=("image_convolution_hip")
+# BINS=("image_convolution_hip")
+BINS=("image_convolution_cuda")
 INPUT_IMAGE=./data/before.bmp
 
 for bin in ${BINS[*]}; do
@@ -17,7 +18,7 @@ for bin in ${BINS[*]}; do
     echo "" > "${LOGFILE}"
     echo "" > "${SUMFILE}"
     echo "--------- $bin"
-    for k in {0..5}; do
+    for k in 4 5; do
         for i in 5 10 50 100; do
             FILE="${OUTDIR}/${bin}-${KERNELS[$k]}.k-$k.i-$i.bmp"
             ./${bin} -i "$i" -k "$k" "${INPUT_IMAGE}" "${FILE}" | tee -a "${LOGFILE}"

@@ -26,14 +26,14 @@ typedef struct {
 } imageSOA_t;
 
 image_t *new_image(unsigned int const width, unsigned int const height);
-void free_image(image_t *image_t);
-int load_image(image_t *image_t, char const *filename);
-int save_image(image_t *image_t, char const *filename);
+void free_image(image_t *image);
+int  load_image(image_t *image, char const *filename);
+int  save_image(image_t *image, char const *filename);
 
 imageSOA_t *new_imageSOA(unsigned int const width, unsigned int const height);
-void free_imageSOA(imageSOA_t *image_t);
+void free_imageSOA(imageSOA_t *image);
 
-int image_to_imageSOA(image_t  *image,     imageSOA_t *soa_image);
+int image_to_imageSOA(image_t    *image,     imageSOA_t *soa_image);
 int imageSOA_to_image(imageSOA_t *image_soa, image_t    *image);
 
 void swap_image_rawdata(pixel **one, pixel **two);

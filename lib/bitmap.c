@@ -53,8 +53,8 @@ image_t * new_image(unsigned int const width, unsigned int const height) {
     new->height = height;
     new->data = NULL;
     new->rawdata = NULL;
-    if (!reallocate_buffer(new, width, height))
-        return NULL;
+
+    reallocate_buffer(new, width, height);
     return new;
 }
 
