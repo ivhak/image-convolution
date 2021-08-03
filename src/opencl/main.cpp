@@ -50,10 +50,10 @@ int main(int argc, char **argv) {
         error_exit(&input,&output);
     }
 
-    const size_t size_of_channel = (image.width)*(image.height)*sizeof(unsigned char);
+    const size_t size_of_channel = (image->width)*(image->height)*sizeof(unsigned char);
     const size_t size_of_filter = filter_dimensions[filter_index]*filter_dimensions[filter_index]*sizeof(int);
 
-    imageSOA_t *image_soa = new_imageSOA(image.width, image.height);
+    imageSOA_t *image_soa = new_imageSOA(image->width, image->height);
     image_to_imageSOA(image, image_soa);
 
     // OpenCL source can be placed in the source code as text strings or read from another file.

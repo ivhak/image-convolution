@@ -54,15 +54,6 @@ bmpdiff: $(LIB_OBJ) src/tools/bmpdiff.c
 bmptile: $(LIB_OBJ) src/tools/bmptile.c
 	$(CC) $(CFLAGS) $^ -o $@
 
-bmpnegative: $(LIB_OBJ) examples/bmpnegative.c
-	$(CC) $(CFLAGS) $^ -o examples/$@
-
-bmpnegative-cuda: $(LIB_OBJ) examples/bmpnegative.cu
-	$(CUDA_CC) $(CFLAGS) $^ -o examples/$@
-
-bmpnegative-hip: $(LIB_OBJ) examples/bmpnegative.hip.cpp
-	$(HIP_CC) $(CFLAGS) $^ -o examples/$@
-
 $(CUDA_OUT): $(LIB_OBJ) $(CUDA_SRC)
 	$(CUDA_CC) $(CFLAGS) $(DFLAGS) $^ -o $@
 
