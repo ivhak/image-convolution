@@ -2,7 +2,9 @@ CUDA_SRC := src/cuda/main.cu
 CUDA_OUT := image_convolution_cuda
 
 HIP_SRC  := src/hip/main.hip.cpp
+HIP_OBJ  := src/hip/main.hip.o
 HIP_OUT  := image_convolution_hip
+HIP_NVIDIA_OUT  := image_convolution_hip-nvidia
 
 OPENCL_SRC := src/opencl/main.cpp
 OPENCL_OUT := image_convolution_opencl
@@ -45,6 +47,12 @@ hip:    $(HIP_OUT)
 cuda:   $(CUDA_OUT)
 opencl: $(OPENCL_OUT)
 serial: $(SERIAL_OUT)
+
+hip-nvidia: export HIP_PLATFORM=nvidia
+hip-nvidia: export CUDA_PATH=/cm/shared/apps/cuda11.0/toolkit/11.0.3
+hip-nvidia: CPPFLAGS += -arch=sm_70
+hip-nvidia: $(HIP_NVIDIA_OUT)
+
 tools:  bmpdiff bmptile
 
 bmpdiff: $(LIB_OBJ) src/tools/bmpdiff.c
@@ -56,7 +64,13 @@ bmptile: $(LIB_OBJ) src/tools/bmptile.c
 $(CUDA_OUT): $(LIB_OBJ) $(CUDA_SRC)
 	$(CUDA_CC) $(CFLAGS) $(DFLAGS) $^ -o $@
 
-$(HIP_OUT): $(LIB_OBJ) $(HIP_SRC)
+$(HIP_OBJ): $(HIP_SRC)
+	$(HIP_CC) -c $(CFLAGS) $(DFLAGS) $^ -o $@
+
+$(HIP_OUT): $(LIB_OBJ) $(HIP_OBJ)
+	$(HIP_CC) $(CFLAGS) $(DFLAGS) $^ -o $@
+
+$(HIP_NVIDIA_OUT): $(LIB_OBJ) $(HIP_OBJ)
 	$(HIP_CC) $(CFLAGS) $(DFLAGS) $^ -o $@
 
 $(OPENCL_OUT): $(LIB_OBJ) $(OPENCL_SRC)
@@ -69,5 +83,5 @@ $(SERIAL_OUT): $(SERIAL_SRC) $(LIB_OBJ)
 	$(CC) -c $(CFLAGS) $< -o $@
 
 clean:
-	rm -Rf $(LIB_OBJ) $(CUDA_OUT) $(HIP_OUT) $(SERIAL_OUT) $(OPENCL_OUT) bmpdiff bmptile
+	rm -Rf $(LIB_OBJ) $(CUDA_OUT) $(HIP_OUT) $(HIP_OBJ) $(HIP_NVIDIA_OUT) $(SERIAL_OUT) $(OPENCL_OUT) bmpdiff bmptile
 

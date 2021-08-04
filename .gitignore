@@ -9,5 +9,5 @@ examples/bmpnegative-hip
 out/
 run.sbatch
 run.sh
-synch.sh
+sync.sh
 jobs/
