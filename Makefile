@@ -5,7 +5,6 @@ HIP_SRC  := src/hip/main.hip.cpp
 HIP_OUT  := image_convolution_hip
 
 OPENCL_SRC := src/opencl/main.cpp
-OPENCL_OBJ := src/opencl/main.o
 OPENCL_OUT := image_convolution_opencl
 OPENCL_DFLAGS := -DCL_TARGET_OPENCL_VERSION=220
 OPENCL_IFLAGS := -I/opt/rocm-4.2.0/opencl/include
@@ -23,7 +22,7 @@ HIP_CC  := hipcc
 
 
 DFLAGS :=
-CFLAGS := 
+CFLAGS :=
 ifdef DEBUG
 CFLAGS += -g -O0
 DFLAGS += -DDEBUG
@@ -60,11 +59,8 @@ $(CUDA_OUT): $(LIB_OBJ) $(CUDA_SRC)
 $(HIP_OUT): $(LIB_OBJ) $(HIP_SRC)
 	$(HIP_CC) $(CFLAGS) $(DFLAGS) $^ -o $@
 
-$(OPENCL_OBJ): $(OPENCL_SRC)
-	$(CC) -c $(CFLAGS) $(DFLAGS) $(OPENCL_DFLAGS) $(OPENCL_IFLAGS) $^ -o $@
-
-$(OPENCL_OUT): $(LIB_OBJ) $(OPENCL_OBJ)
-	$(CC) $^ $(OPENCL_LFLAGS) -o $@
+$(OPENCL_OUT): $(LIB_OBJ) $(OPENCL_SRC)
+	$(CC) $(CFLAGS) $(DFLAGS) $(OPENCL_DFLAGS) $(OPENCL_IFLAGS) $^ $(OPENCL_LFLAGS) -o $@
 
 $(SERIAL_OUT): $(SERIAL_SRC) $(LIB_OBJ)
 	$(CC) $(CFLAGS) $^ -o $@
@@ -73,5 +69,5 @@ $(SERIAL_OUT): $(SERIAL_SRC) $(LIB_OBJ)
 	$(CC) -c $(CFLAGS) $< -o $@
 
 clean:
-	rm -Rf $(LIB_OBJ) $(OPENCL_OBJ)  $(CUDA_OUT) $(HIP_OUT) $(SERIAL_OUT) $(OPENCL_OUT) bmpdiff bmptile
+	rm -Rf $(LIB_OBJ) $(CUDA_OUT) $(HIP_OUT) $(SERIAL_OUT) $(OPENCL_OUT) bmpdiff bmptile
 
