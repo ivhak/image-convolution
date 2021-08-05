@@ -89,7 +89,8 @@ int main(int argc, char **argv) {
     // print_device_info(device_id);
 
     // Create a compute context with the GPU
-    context = clCreateContextFromType(NULL, CL_DEVICE_TYPE_GPU, NULL, NULL, &err);
+    cl_context_properties props[] = {CL_CONTEXT_PLATFORM, (cl_context_properties)platform_id, 0};
+    context = clCreateContextFromType(props, CL_DEVICE_TYPE_GPU, NULL, NULL, &err);
     DIE_IF_CL(err, "Could not create compute context.");
 
     // Create a command queue
