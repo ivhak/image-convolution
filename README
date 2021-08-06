@@ -20,6 +20,10 @@ HIP:
 
     make hip
 
+HIP (NVIDIA):
+
+    make hip-nvidia
+
 OpenCL:
 
     make opencl
@@ -101,11 +105,11 @@ used can be specified with the -k flag:
 Usage
 -----
 
-    ./image_convolution_[cuda|hip|opencl|serial] [options] <input-bmp> <output-bmp>
+    ./image-convolution-[cuda|hip|hip-nvidia|opencl|serial] [options] <input-bmp> <output-bmp>
 
     Options:
       -k, --filter     <filter>        filter index (0<=x<=5) (2)
       -i, --iterations <iterations>    number of iterations (1)
 
-    Example: ./image_convolution_[cuda|hip|opencl|serial] data/before.bmp after.bmp -i 10000
+    Example: ./image-convolution-[cuda|hip|hip-nvidia|opencl|serial] data/before.bmp after.bmp -i 10000
 
